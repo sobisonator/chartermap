@@ -1,6 +1,8 @@
 {
   "dependencies": {
-    "lexical": "^0.16.1"
+    "@lexical/dragon": "^0.17.0",
+    "lexical": "^0.16.1",
+    "ts-node": "^10.9.2"
   },
   "scripts": {
     "build": "webpack --mode=development"
