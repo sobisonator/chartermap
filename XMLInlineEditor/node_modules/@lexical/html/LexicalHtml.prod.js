@@ -1,0 +1,16 @@
+/**
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+
+'use strict';var h=require("@lexical/selection"),q=require("@lexical/utils"),r=require("lexical");
+function u(a,b,f,e=null){let g=null!==e?b.isSelected(e):!0,d=r.$isElementNode(b)&&b.excludeFromCopy("html");var c=b;null!==e&&(c=r.$cloneWithProperties(b),c=r.$isTextNode(c)&&null!==e?h.$sliceSelectedTextNodeContent(e,c):c);let k=r.$isElementNode(c)?c.getChildren():[];var l=a._nodes.get(c.getType());l=l&&void 0!==l.exportDOM?l.exportDOM(a,c):c.exportDOM(a);let {element:m,after:n}=l;if(!m)return!1;l=document.createDocumentFragment();for(let p=0;p<k.length;p++){let t=k[p],y=u(a,t,l,e);!g&&r.$isElementNode(b)&&
+y&&b.extractWithChild(t,e,"html")&&(g=!0)}g&&!d?(q.isHTMLElement(m)&&m.append(l),f.append(m),n&&(a=n.call(c,m))&&m.replaceWith(a)):f.append(l);return g}function v(a,b){var {nodeName:f}=a;f=b._htmlConversions.get(f.toLowerCase());b=null;if(void 0!==f)for(let e of f)f=e(a),null!==f&&(null===b||(b.priority||0)<(f.priority||0))&&(b=f);return null!==b?b.conversion:null}let w=new Set(["STYLE","SCRIPT"]);
+function x(a,b,f,e,g=new Map,d){let c=[];if(w.has(a.nodeName))return c;let k=null;var l=v(a,b),m=l?l(a):null;l=null;if(null!==m){l=m.after;let p=m.node;k=Array.isArray(p)?p[p.length-1]:p;if(null!==k){for(var [,n]of g)if(k=n(k,d),!k)break;k&&c.push(...(Array.isArray(p)?p:[k]))}null!=m.forChild&&g.set(a.nodeName,m.forChild)}d=a.childNodes;n=[];e=null!=k&&r.$isRootOrShadowRoot(k)?!1:null!=k&&r.$isBlockElementNode(k)||e;for(m=0;m<d.length;m++)n.push(...x(d[m],b,f,e,new Map(g),k));null!=l&&(n=l(n));q.isBlockDomNode(a)&&
+(n=e?z(a,n,()=>{let p=new r.ArtificialNode__DO_NOT_USE;f.push(p);return p}):z(a,n,r.$createParagraphNode));null==k?0<n.length?c=c.concat(n):q.isBlockDomNode(a)&&A(a)&&(c=c.concat(r.$createLineBreakNode())):r.$isElementNode(k)&&k.append(...n);return c}
+function z(a,b,f){a=a.style.textAlign;let e=[],g=[];for(let c=0;c<b.length;c++){var d=b[c];if(r.$isBlockElementNode(d))a&&!d.getFormat()&&d.setFormat(a),e.push(d);else if(g.push(d),c===b.length-1||c<b.length-1&&r.$isBlockElementNode(b[c+1]))d=f(),d.setFormat(a),d.append(...g),e.push(d),g=[]}return e}function A(a){return null==a.nextSibling||null==a.previousSibling?!1:r.isInlineDomNode(a.nextSibling)&&r.isInlineDomNode(a.previousSibling)}
+exports.$generateHtmlFromNodes=function(a,b){if("undefined"===typeof document||"undefined"===typeof window&&"undefined"===typeof global.window)throw Error("To use $generateHtmlFromNodes in headless mode please initialize a headless browser implementation such as JSDom before calling this function.");let f=document.createElement("div"),e=r.$getRoot().getChildren();for(let g=0;g<e.length;g++)u(a,e[g],f,b);return f.innerHTML};
+exports.$generateNodesFromDOM=function(a,b){let f=b.body?b.body.childNodes:[];b=[];let e=[];for(let d=0;d<f.length;d++){var g=f[d];w.has(g.nodeName)||(g=x(g,a,e,!1),null!==g&&(b=b.concat(g)))}for(let d of e)d.getNextSibling()instanceof r.ArtificialNode__DO_NOT_USE&&d.insertAfter(r.$createLineBreakNode());for(let d of e){a=d.getChildren();for(let c of a)d.insertBefore(c);d.remove()}return b}
