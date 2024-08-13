@@ -9,7 +9,13 @@ module.exports = {
     filename: 'bundle.js'
   },
   resolve: {
-    extensions: ['.ts', '.tsx', '.js', '.json']
+    extensions: ['.ts', '.tsx', '.js']
+  },
+  module: {
+    rules: [
+      // all files with .ts, .cts, .mts or .tsx extension handled by ts-loader
+      { test: /\.([cm]?ts|tsx)$/, loader:'ts-loader'}
+    ]
   },
   // Optional and for development only. This provides the ability to
   // map the built code back to the original source format when debugging.
