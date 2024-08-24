@@ -9,16 +9,32 @@ import {HistoryPlugin} from '@lexical/react/LexicalHistoryPlugin';
 import {LexicalErrorBoundary} from '@lexical/react/LexicalErrorBoundary';
 
 import CharterTheme from './charterTheme';
-import ToolbarPlugin from '.plugins/ToolbarPlugin';
+import ToolbarPlugin from './plugins/ToolbarPlugin';
 import TreeViewPlugin from './plugins/TreeViewPlugin';
 
 const placeholder = 'Hwaet!';
 
-function onError(error) {
-    console.error(error);
-}
-
 const editorConfig = {
     namespace: 'MILEX',
     nodes: [],
+    // Handling of errors during update
+    onError(error: Error) {
+        throw error;
+    },
+    // The editor theme
+    theme: CharterTheme,
+};
+
+export default function App() {
+    return (
+        <LexicalComposer initialConfig={editorConfig}>
+            <div className="editor-container">
+                <ToolbarPlugin />
+                <div className="editor-inner">
+                    <RichTextPlugin
+                        contentEditable={}
+                </div>
+            </div>
+        </LexicalComposer>
+    )
 }
