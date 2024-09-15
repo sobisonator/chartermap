@@ -3,7 +3,7 @@
 -- SYMBOLS REGION
 -- symbols
 -- Each row is a symbolic object in the text
-CREATE TABLE IF NOT EXISTS "symbols"(
+CREATE TABLE IF NOT EXISTS "glpyhs"(
     char_uid INTEGER PRIMARY KEY,
     text_ref VARCHAR NOT NULL, -- Does this want to reference texts outside of the system, in a 3rd party digital archive?
     pos INTEGER NOT NULL,
@@ -11,6 +11,11 @@ CREATE TABLE IF NOT EXISTS "symbols"(
 )
 
 -- MARKUPS REGION
+-- Every markup should denote a property-entity relationship in the text
+-- available combinations are
+-- P72 Has language : E56 Language
+-- P76 Refers to : [person, place]
+-- 
 
 -- markups
 -- Lists the markups created
@@ -44,7 +49,7 @@ CREATE TABLE IF NOT EXISTS "tags"(
     tag_text VARCHAR
 )
 
--- TYPES REGION
+-- ENTITY TYPES REGION
 -- markup_types
 -- Defines the types of information that a markup can denote
 -- ... (e.g. "person", "place", "script", "hand", "language") available
