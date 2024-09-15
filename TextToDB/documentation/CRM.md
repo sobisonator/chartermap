@@ -116,7 +116,23 @@ We do not use E62 string because the native format of the charters is not digita
 
 # Geodata
 
-Geodata in CharterDB consists of GeoJSON which follows a strict convention.
+Geodata in CharterDB consists of [GeoJSON](https://datatracker.ietf.org/doc/html/rfc7946) which follows a convention that is set out below.
 
 ## Boundary loc instructions
-Boundary loc instructions must be a LineString
+Boundary loc instructions must be a series of points which are then compiled into a geoJSON LineString or Polygon, according to the recorder's choice.
+The boundary loc information is stored in a database table as individual points referring to their original text, and, where relevant, which point follows the given point in the instructions.
+
+When a written instruction describes a line rather than a point, going "along", "by" a feature, the line should be described by a sequence of points which all share a "part of line" property. When editing this line, the user sees the line connected as if it were part of a GeoJSON LineString instead of a sequence of individual x,y points
+
+Each point has the following properties:
+- ID: A unique ID
+- x_pos: X position of the point
+- y_pos: Y position of the point
+- Markup: References the markup to which this point belongs, thereby connecting it to the written instruction in the text
+- Range of certainty: a measure in metres of the degree of certainty to which the point can be identified. The point itself remains the centre, but a circle can be displayed around the point indicating the range of certanty. Default is 0m (maximum certainty)
+- References: A list of bibliographic references supporting or negating the validity of this location
+- Part of line: References a line ID, if this is part of a line. Can be left null
+
+The boundary points of a text can be compiled into a single GeoJSON polygon object, at the cost of losing the vertex-specific properties. All properties of the polygon are moved into the "properties" of the new polygon object with the key for each property structured as "`point x`-`point-y`-`property`", accompanied by the property belonging to that point.
+
+##
