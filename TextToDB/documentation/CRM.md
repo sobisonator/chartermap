@@ -129,10 +129,13 @@ Each point has the following properties:
 - x_pos: X position of the point
 - y_pos: Y position of the point
 - Markup: References the markup to which this point belongs, thereby connecting it to the written instruction in the text
-- Range of certainty: a measure in metres of the degree of certainty to which the point can be identified. The point itself remains the centre, but a circle can be displayed around the point indicating the range of certanty. Default is 0m (maximum certainty)
+- Range of certainty: a measure in metres of the degree of certainty to which the point can be identified. The point itself remains the centre, but a circle can be displayed around the point indicating the range of certanty. Default is 0m (maximum certainty). Where used alongside other databases with their own spatial data, this should act as a suggested extra minimum radius of the search area for "nearby objects". 
 - References: A list of bibliographic references supporting or negating the validity of this location
 - Part of line: References a line ID, if this is part of a line. Can be left null
 
 The boundary points of a text can be compiled into a single GeoJSON polygon object, at the cost of losing the vertex-specific properties. All properties of the polygon are moved into the "properties" of the new polygon object with the key for each property structured as "`point x`-`point-y`-`property`", accompanied by the property belonging to that point.
 
-##
+## Other location data
+Wherever possible, other location data should make reference to external sources.
+
+Where this is not possible, a location should be defined in CharterDB's own records as a GeoJSON object.
