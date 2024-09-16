@@ -46,6 +46,9 @@ id: Unique ID
 markup_class: What class this markup reference? Tells the system which column to check
 creator: ID of the user who created this markup
 {Reference columns}: One reference column for each available class, always should be null except for that of the relevant class.
+#### Markup classes
+id: Unique ID
+class_label: The name of the class
 
 #### Reference columns within markups
 ##### Has language of (P72)
@@ -65,7 +68,7 @@ backup_id: references a person via people(id)
 scope: English description of the scope of the classification
 ###### Was written by (TXP5)
 ###### Refers to grantor (P23 - "transferred title from")
-###### Refers to grantee (P22 - "transferred title to")
+###### Refers to beneficiary (P22 - "transferred title to")
 ###### Refers to former title holder (P23 - "transferred title from")
 ###### Refers to doc_witness (P11 - "had participant")
 A witness' name against a charter does not mean that the charter was actually signed or transferred in the presence of the named person. P11 participation can include a reference to, e.g. a depiction of, the individual without requiring their direct contribution to the production of the object.
@@ -96,9 +99,9 @@ geometry: GeoJSON object describing the geometry included in the instruction, fo
 Selected styles which can be attributed to a grapheme.
 id: Unique ID
 label: The label given to the style
-type: References style_types(id). The type of style property.
-desc: Short description of the style
-### Style_types (no CIDOC CRM number)
+class: References style_classes(id). The type of style property.
+descr: Short description of the style
+### Style_classes (no CIDOC CRM number)
 Different types of styles which can be differentiated
 id: Unique ID
 Name: The English name given to the type of style
@@ -141,6 +144,17 @@ All legal rights conveyed in charters
 id: Unique ID
 label: the English name given to the right
 desc: Short plaintext description of the right
+### Diplomatic forms (TX7 - "Written text segment")
+All diplomatic forms as recorded in KCL ASChart (open to additions). These are distinct from the types (e.g. proem, invocation, dating clause) in that they represent the _form_ of the phrase (e.g. in the case of a dating clause, whether it uses an indiction)
+id: Unique ID
+ideal_form: a genericised form of the diplomatic form that ignores minor variations in spelling or phraseology
+diplomatic_form_type: References diplomatic_form_types(id) The type of diplomatic form that this is (e.g. proem, invocation, dating clause), implies a P127 "has broader term" relationship
+### Diplomatic form types (E55 - "Type")
+All types of diplomatic forms. Examples include proem, invocation, dating clause
+id: Unique id
+label: The label for the form type
+desc: A short description of the form type
+
 
 ### Structured bibliographic references: a nice-to-have
 It will be necessary to store references because the system's purpose is NOT to make judgements on the validity of information, but rather to present all information with minimal interpretation.
@@ -189,10 +203,9 @@ Each point has the following properties:
 - ID: A unique ID
 - x_pos: X position of the point
 - y_pos: Y position of the point
-- Markup: References the markup to which this point belongs, thereby connecting it to the written instruction in the text
-- Range of certainty: a measure in metres of the degree of certainty to which the point can be identified. The point itself remains the centre, but a circle can be displayed around the point indicating the range of certanty. Default is 0m (maximum certainty). Where used alongside other databases with their own spatial data, this should act as a suggested extra minimum radius of the search area for "nearby objects". 
-- References: A list of bibliographic references supporting or negating the validity of this location
-- Part of line: References a line ID, if this is part of a line. Can be left null
+- Markup: Computed property. References the markup to which this point belongs, thereby connecting it to the written instruction in the text
+- Range of accuracy: a measure in metres of the degree of certainty to which the point can be identified. The point itself remains the centre, but a circle can be displayed around the point indicating the range of certanty. Default is 0m (maximum certainty). Where used alongside other databases with their own spatial data, this should act as a suggested extra minimum radius of the search area for "nearby objects". 
+- References: Computed property. A list of bibliographic references supporting or negating the validity of this location
 
 The boundary points of a text can be compiled into a single GeoJSON polygon object, at the cost of losing the vertex-specific properties. All properties of the polygon are moved into the "properties" of the new polygon object with the key for each property structured as "`point x`-`point-y`-`property`", accompanied by the property belonging to that point.
 
