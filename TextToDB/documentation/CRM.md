@@ -31,28 +31,28 @@ The description lays out the contents of the table rows.
 All characters across all charters. A grapheme occurrence is the instance of the grapheme (the abstract symbol)  
 id: Unique ID
 grapheme_unicode: Unicode hex value of the character
-forms_part_of: References texts(i): denotes with which text this character is associated
+text_ref: Creates a "forms part of" relationship with a texts(id): denotes with which text this character is associated
 manuscript: References the manuscript in which a document is stored
 
 pos_x: Denotes the horizontal position of the character in the text. In the instance that the grid-position of a character is not preserved by a transcription, then this contains the ordinal position of the character in the text and other values may be null. When importing a text, if no other positional data is provided then this is used as the only position value and characters are printed left-to-right top-to-bottom in whatever text renderer displays this information.
 pos_y: Denotes the vertical position of the character in the text
-pos_facing: Denotes whether the character is on the charter's recto or verso
+pos_recto: Denotes whether the character is on the charter's recto or verso (boolean)
 folio: Denotes the page of the manuscript on which the character appears
 
-UNIQUE (manuscript, pos_x, pos_y, pos_facing, folio): No two characters can share the same position in a manuscript.
+UNIQUE (manuscript, pos_x, pos_y, pos_recto, folio): No two characters can share the same position in a manuscript.
 ### Markups (TX7 - "written text segment")
 Every markup, which links a set of characters to metadata
 id: Unique ID
-type: What class this markup reference? Tells the system which column to check
+markup_class: What class this markup reference? Tells the system which column to check
 creator: ID of the user who created this markup
 {Reference columns}: One reference column for each available class, always should be null except for that of the relevant class.
 
 #### Reference columns within markups
 ##### Has language of (P72)
 References languages(id)
-##### Has style (TPX12)
+##### Has style (TXP12)
 References styles(id)
-##### Employs script (TPX16)
+##### Employs script (TXP16)
 References scripts(id)
 ##### People references
 Every person reference follows the same structure, with its table implying the type of relationship.
@@ -63,11 +63,11 @@ id: Unique ID
 pase_id: PASE reference
 backup_id: references a person via people(id)
 scope: English description of the scope of the classification
-###### Was written by (TPX5)
+###### Was written by (TXP5)
 ###### Refers to grantor (P23 - "transferred title from")
 ###### Refers to grantee (P22 - "transferred title to")
 ###### Refers to former title holder (P23 - "transferred title from")
-###### Refers to witness (P11 - "had participant")
+###### Refers to doc_witness (P11 - "had participant")
 A witness' name against a charter does not mean that the charter was actually signed or transferred in the presence of the named person. P11 participation can include a reference to, e.g. a depiction of, the individual without requiring their direct contribution to the production of the object.
 All other references also imply a P11 relationship; a bare P11 relationship is reserved only for instances where the individual is recorded as a witness. The individual may be recorded otherwise elswhere in the document, with a different property code.
 ###### Refers to individual (P67 - "refers to")
@@ -80,13 +80,17 @@ name: English name of the location
 geometry: GeoJSON object describing the geometry of the location., following the CharterDB convention
 scope: English description of the scope of the classification
 ##### Took place at (P7)
-Refers to where the charter was signed, implies a relationship of E8 Acquisition (which is P45 Incorporated in the TX1 Text) Taking place at the given location 
+Refers to where the charter was signed, implies a relationship of the E5 Event of the charter's signing, and the E8 Acquisition (which is P45 Incorporated in the TX1 Text) taking place at the given location.
+##### Transferred title of (P24)
+Refers to the title being transferred
+##### Refers to location (P67)
+Any location referred to that is not the location
 #### Boundary location references (E27- "site")
 Boundary location references are different because boundaries are made up of polygons for which each point and vertex must be linked to a markup of the text which constitutes a section of the boundary date.
 Altogether the boundary locations of a text constitute its boundaries
 ##### Boundary loc instruction (E29 - "Design or procedure")
 id: Unique ID
-next: References boundary_loc_element(id). Denotes the boundary location instruction which follows this one
+next: References boundary_vertices(id). Denotes the boundary location instruction which follows this one
 geometry: GeoJSON object describing the geometry included in the instruction, following the CharterDB convention
 ### Styles (TX10)
 Selected styles which can be attributed to a grapheme.
@@ -94,7 +98,7 @@ id: Unique ID
 label: The label given to the style
 type: References style_types(id). The type of style property.
 desc: Short description of the style
-### Style_types (no ID)
+### Style_types (no CIDOC CRM number)
 Different types of styles which can be differentiated
 id: Unique ID
 Name: The English name given to the type of style
@@ -102,6 +106,8 @@ The following style types are available:
 - hand: A particular scribe's hand
 - script design: e.g. Carolingian minuscule
 - ductus: Describes the direction of the script
+- stroke details: detail of the text to do with the method of applying the writing instrument to the page
+- other: in case of broadening scope
 desc: Short description of the style type
 ### Texts (TX1)
 All texts
@@ -128,8 +134,13 @@ label: The English name given to the language
 ### Scripts (TX13)
 All scripts said to be used in the corpus
 id: Unique ID
-label: The English name givent to the script
+label: The English name given to the script
 desc: Short plaintext description of the script
+### Rights (E30)
+All legal rights conveyed in charters
+id: Unique ID
+label: the English name given to the right
+desc: Short plaintext description of the right
 
 ### Structured bibliographic references: a nice-to-have
 It will be necessary to store references because the system's purpose is NOT to make judgements on the validity of information, but rather to present all information with minimal interpretation.

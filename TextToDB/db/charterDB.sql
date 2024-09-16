@@ -3,12 +3,42 @@
 -- SYMBOLS REGION
 -- symbols
 -- Each row is a symbolic object in the text
-CREATE TABLE IF NOT EXISTS "glpyhs"(
-    char_uid INTEGER PRIMARY KEY,
-    text_ref VARCHAR NOT NULL, -- Does this want to reference texts outside of the system, in a 3rd party digital archive?
-    pos INTEGER NOT NULL,
-    UNIQUE (text_id, pos)
+CREATE TABLE IF NOT EXISTS "characters"(
+    id BIGSERIAL PRIMARY KEY,
+    text_ref REFERENCES texts(id) NOT NULL,
+    pos_x INTEGER NOT NULL,
+    pos_y INTEGER,
+    pos_recto BOOLEAN,
+    folio INTEGER,
+    UNIQUE (text_ref, pos_x, pos_y, pos_recto, folio)
 )
+
+CREATE TABLE IF NOT EXISTS "markups"(
+    id BIGSERIAL PRIMARY KEY,
+    markup_class REFERENCES markup_types(id),
+    creator REFERENCES users(id),
+    -- Linguistic / textual
+    has_language_of REFERENCES languages(id), -- P72
+    has_style REFERENCES styles(id), -- TXP12
+    employs_script REFERENCES scripts(id), --TXP16
+    -- People. Derived from PASE and other sources
+    was_written_by REFERENCES people(id), --TXP5
+    grantor REFERENCES people(id), --P23
+    grantee REFERENCES people(id), --P22
+    former_title_holder REFERENCES people(id), --P23
+    doc_witness REFERENCES people(id), --P11
+    mentioned_person REFERENCES people(id), --P67
+    -- Non-boundary locations
+    took_place_at REFERENCES locations(id), --P7, aka promulgation
+    transfers_title_to_place REFERENCES locations(id), --P24
+    refers_to_location REFERENCES locations(id), --P67
+    -- Boundary instructions
+    boundary_instruction REFERENCES boundary_vertices(id),
+    -- Transferible rights
+    transfers_title_to_right REFERENCES rights(id)
+)
+
+
 
 -- MARKUPS REGION
 -- Every markup should denote a property-entity relationship in the text
