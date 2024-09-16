@@ -89,7 +89,7 @@ Refers to the title being transferred
 ##### Refers to location (P67)
 Any location referred to that is not the location
 #### Boundary location references (E27- "site")
-Boundary location references are different because boundaries are made up of polygons for which each point and vertex must be linked to a markup of the text which constitutes a section of the boundary date.
+Boundary location references are different because boundaries are made up of linestrings or polygons for which each vertex and path must be linked to a markup of the text which constitutes the relevant section of the boundary clause.
 Altogether the boundary locations of a text constitute its boundaries
 ##### Boundary loc instruction (E29 - "Design or procedure")
 id: Unique ID
@@ -194,10 +194,10 @@ We do not use E62 string because the native format of the charters is not digita
 Geodata in CharterDB consists of [GeoJSON](https://datatracker.ietf.org/doc/html/rfc7946) which follows a convention that is set out below.
 
 ## Boundary loc instructions
-Boundary loc instructions must be a series of points which are then compiled into a geoJSON LineString or Polygon, according to the recorder's choice.
-The boundary loc information is stored in a database table as individual points referring to their original text, and, where relevant, which point follows the given point in the instructions.
+Boundary loc instructions must be a series of points and paths which are then compiled into a geoJSON LineString or Polygon
+The boundary loc information is stored in a database table as individual points which are referred back to the text by markups, and, where relevant, each point also indicates which point follows the given point in the instructions.
 
-When a written instruction describes a line rather than a point, going "along", "by" a feature, the line should be described by a sequence of points which all share a "part of line" property. When editing this line, the user sees the line connected as if it were part of a GeoJSON LineString instead of a sequence of individual x,y points
+When a written instruction describes a line rather than a point, e.g. going "along", "past" or "by" a feature, the route should be described by a path.
 
 Each point has the following properties:
 - ID: A unique ID
