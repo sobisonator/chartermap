@@ -10,6 +10,20 @@ This implementation takes a relational database and structures its tables as sto
 - Property tables are lists of relationships between two objects of different classes, all sharing a type of relationship (their "property")
 The only exception to this is the characters table, whose column forms_part_of implies a TXP17 relationship to the referenced text
 
+## Shared properties
+By the way that markups are linked to the text, it will be possible to identify where markups are linked where they share association with the same characters. The association can be described by a ratio of two percentages, where the percentage overlap of either markup is displayed.
+
+e.g. ++//markup one (//) covers this text// and markup two (++) covers the whole text++
+
+With markup 1 selected and 74 characters in the text (ignoring the markup delineators // and ++) the ratio is 100:43, because markup 1 overlaps 100% with markup 2, and markup 2 overlaps 43% with markup 1.
+
+From this, associations can be drawn. One can ask the questions of selected markups:
+- Does the name of king X always appear in a certain script?
+- What is the level of association between the Old English language and any given script, or hand?
+
+## General textual properties
+Because of the positional metadata available for all characters in texts, markups can also provide implicit information about the position of or amount of text used to contain information. Does the name of King X always appear in the first 100 characters in all charters? Perhaps certain phrases are always above or below a certain length in characters.
+
 ## Database tables
 Each table is listed by its English name and its CRMTex class in parentheses.
 The description lays out the contents of the table rows.
@@ -32,45 +46,63 @@ id: Unique ID
 type: What class this markup reference? Tells the system which column to check
 creator: ID of the user who created this markup
 {Reference columns}: One reference column for each available class, always should be null except for that of the relevant class.
+
 #### Reference columns within markups
+##### Has language of (P72)
+References languages(id)
 ##### Has style (TPX12)
 References styles(id)
+##### Employs script (TPX16)
+References scripts(id)
 ##### People references
-Every person reference follows the same structure, with its table implying the type of relationship
+Every person reference follows the same structure, with its table implying the type of relationship.
+All people are implicitly an instance of E39 "Actor"
 References a PASE ID where available
 Otherwise, references a person via people(id)
 id: Unique ID
 pase_id: PASE reference
 backup_id: references a person via people(id)
+scope: English description of the scope of the classification
 ###### Was written by (TPX5)
-###### Refers to grantor (P67)
-###### Refers to grantee ()
+###### Refers to grantor (P23 - "transferred title from")
+###### Refers to grantee (P22 - "transferred title to")
+###### Refers to former title holder (P23 - "transferred title from")
+###### Refers to witness (P11 - "had participant")
+A witness' name against a charter does not mean that the charter was actually signed or transferred in the presence of the named person. P11 participation can include a reference to, e.g. a depiction of, the individual without requiring their direct contribution to the production of the object.
+All other references also imply a P11 relationship; a bare P11 relationship is reserved only for instances where the individual is recorded as a witness. The individual may be recorded otherwise elswhere in the document, with a different property code.
+###### Refers to individual (P67 - "refers to")
+Any individual referred to in the charter but not in any way specified otherwise should be recorded in this table. Other information about the individual remains encoded in the prosopography record.
 #### Non-boundary location references
 Some location references follow the same structure, with their table implying the type of relationship
 It may be desirable also to store tables of geometries and their properties
 id: Unique ID
 name: English name of the location
 geometry: GeoJSON object describing the geometry of the location., following the CharterDB convention
-#### Boundary location references
+scope: English description of the scope of the classification
+##### Took place at (P7)
+Refers to where the charter was signed, implies a relationship of E8 Acquisition (which is P45 Incorporated in the TX1 Text) Taking place at the given location 
+#### Boundary location references (E27- "site")
 Boundary location references are different because boundaries are made up of polygons for which each point and vertex must be linked to a markup of the text which constitutes a section of the boundary date.
 Altogether the boundary locations of a text constitute its boundaries
-##### Boundary loc instruction
+##### Boundary loc instruction (E29 - "Design or procedure")
 id: Unique ID
 next: References boundary_loc_element(id). Denotes the boundary location instruction which follows this one
 geometry: GeoJSON object describing the geometry included in the instruction, following the CharterDB convention
-### Scripts (TX13) or Writing Systems (TX3)?
-All scripts to which a grapheme can be attributed (if not attributed, reference is null)
 ### Styles (TX10)
 Selected styles which can be attributed to a grapheme.
 id: Unique ID
 label: The label given to the style
 type: References style_types(id). The type of style property.
+desc: Short description of the style
 ### Style_types (no ID)
 Different types of styles which can be differentiated
 id: Unique ID
 Name: The English name given to the type of style
 The following style types are available:
-- hand:
+- hand: A particular scribe's hand
+- script design: e.g. Carolingian minuscule
+- ductus: Describes the direction of the script
+desc: Short description of the style type
 ### Texts (TX1)
 All texts
 ID: Unique ID
@@ -79,16 +111,33 @@ Sawyer Number: The Sawyer number of this object (stored as integer, the S is imp
 All manuscripts
 ID: Unique ID
 #### Text relationships
-### Text creation events (E65)
+##### Text creation events (E65)
 All creation events which can be attributed to a text
 ID: Unique ID
 Time-span (E52): Date of creation, to degree of certainty
+### Modifications (E11)
+Tags which indicate a modification was carried out on the text
+id: Unique ID
+modified_by: (P31 - "was modified by") refers to a PASE id
+modified_by_backup: (P31) reference to people(id)
+### Languages (E56)
+Latin, English, P-Celtic, Q-Celtic, Norse
+This will mostly be Latin and English, but others may be used where place names are not written in their Latin or English equivalents
+id: Unique ID
+label: The English name given to the language
+### Scripts (TX13)
+All scripts said to be used in the corpus
+id: Unique ID
+label: The English name givent to the script
+desc: Short plaintext description of the script
 
-### Structured references: a nice-to-have
+### Structured bibliographic references: a nice-to-have
+It will be necessary to store references because the system's purpose is NOT to make judgements on the validity of information, but rather to present all information with minimal interpretation.
+
+As a nice to have...
 Encourage the structuring of references in a systematic manner for best interoperability.
 However, this is not a reference management system, and that's a whole system of its own to design.
-It will be necessary to store references because the system's purpose is NOT to make judgements on the validity of information, but rather to present all information with minimal interpretation.
-### Ref texts 
+### Ref texts unnamed
 All references that can be linked to markup either in support or negation of a position. Columns constitute the [ISO 690](https://en.wikipedia.org/wiki/ISO_690).
 Because it is difficult to maintain consistency when creating references, all fields will be checked when creating a new reference and the user presented with partial or full matches.
 ID: Unique ID
@@ -96,12 +145,13 @@ Creator: Creator's(') name(s)
 Translator: Translator's name
 Editor: Editor's(') name(s)
 Edition: Edition version
-#### Reference relationships (P67)
+#### Reference relationships
 Stores the relationships between markups and references, either with support or negation, and the specific pages if relevant
-ID: Unique ID
-Markup: References markups(ID)
-Reference: References ref_texts(ID)
-Support: Boolean value, if True then this reference is in support of the markup's information, if False then it is in negation. If null, then the reference simply mentions the information contained within the markup without comment or implication as to its validity
+id: Unique ID
+markup: References markups(ID)
+reference: References ref_texts(ID)
+pages: Optional free-text describing which pages of the text
+Support: Boolean value, if True then this reference is in support of the markup's information, if False then it is in negation.
 
 
 At time of writing, the CIDOC CRM version accessed is [7.1.3](https://www.cidoc-crm.org/sites/default/files/cidoc_crm_version_7.1.3.pdf) and CRMTex is version 2.0
