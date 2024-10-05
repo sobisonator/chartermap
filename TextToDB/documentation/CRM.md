@@ -30,7 +30,7 @@ The description lays out the contents of the table rows.
 ### Characters (TX11 - "Grapheme Occurrence")
 All characters across all charters. A grapheme occurrence is the instance of the grapheme (the abstract symbol)  
 id: Unique ID
-grapheme_unicode: Unicode hex value of the character
+symbol: Unicode hex value of the character
 text_ref: Creates a "forms part of" relationship with a texts(id): denotes with which text this character is associated
 manuscript: References the manuscript in which a document is stored
 
