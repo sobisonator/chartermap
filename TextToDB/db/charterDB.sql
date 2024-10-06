@@ -1,18 +1,18 @@
-    -- Using postgresql
+-- Using postgresql
 
-    -- CHARACTERS REGION
-    -- symbols
-    -- Each row is a symbolic object in the text
-    CREATE TABLE IF NOT EXISTS "characters"(
-        id BIGSERIAL PRIMARY KEY,
-        symbol VARCHAR NOT NULL,
-        text_ref INTEGER REFERENCES texts(id) NOT NULL,
-        pos_x INTEGER NOT NULL,
-        pos_y INTEGER,
-        pos_recto BOOLEAN,
-        folio INTEGER,
-        UNIQUE (text_ref, pos_x, pos_y, pos_recto, folio)
-    );
+-- CHARACTERS REGION
+-- symbols
+-- Each row is a symbolic object in the text
+CREATE TABLE IF NOT EXISTS "characters"(
+    id BIGSERIAL PRIMARY KEY,
+    symbol VARCHAR NOT NULL,
+    text_ref INTEGER REFERENCES texts(id) NOT NULL,
+    pos_x INTEGER NOT NULL,
+    pos_y INTEGER,
+    pos_recto BOOLEAN,
+    folio INTEGER,
+    UNIQUE (text_ref, pos_x, pos_y, pos_recto, folio)
+);
 
 CREATE TABLE IF NOT EXISTS "texts"(
     id SERIAL PRIMARY KEY,
