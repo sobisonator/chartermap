@@ -22,4 +22,8 @@ def setup_database():
     db.clear_database() # Scrap everything in the schema
     db.create_database() # Re-make it
 
-setup_database()
+reset_database = input("Clear and remove database? Type y to clear or any other input to proceed: ")
+if reset_database.lower() == "y":
+    setup_database()
+
+markup_window = MarkupWindow()

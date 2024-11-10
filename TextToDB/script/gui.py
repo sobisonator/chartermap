@@ -1,3 +1,7 @@
-import tkinter as tk
+from tkinter import *
 
-window = tk.Tk()
+class MarkupWindow:
+    def __init__(self):
+        window = Tk()
+        window.title("CharterMap markup window test")
+        window.mainloop()
