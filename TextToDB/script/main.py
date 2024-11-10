@@ -14,11 +14,12 @@ DATABASE_CFG_PATH = pathlib.Path(SCRIPT_PATH.parent / "db/db_connection.cfg")
 DB_PATH = pathlib.Path(SCRIPT_PATH.parent / "db/charterDB.sql")
 
 def setup_database():
+    # This should only be called at first-time installation of the database.
     db = DB(schema_path = SCHEMA_PATH,
             cfg_path = DATABASE_CFG_PATH,
             db_path = DB_PATH
             )
-
-    db.create_database()
+    db.clear_database() # Scrap everything in the schema
+    db.create_database() # Re-make it
 
 setup_database()
