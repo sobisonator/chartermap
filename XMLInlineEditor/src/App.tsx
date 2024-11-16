@@ -32,9 +32,22 @@ export default function App() {
                 <ToolbarPlugin />
                 <div className="editor-inner">
                     <RichTextPlugin
-                        contentEditable={}
+                        contentEditable={
+                            <ContentEditable
+                                className = "editor-input"
+                                aria-placeholder={placeholder}
+                                placeholder = {
+                                    <div className="editor-placeholder">{placeholder}</div>
+                                }
+                            />
+                        }
+                        ErrorBoundary={LexicalErrorBoundary}
+                    />
+                    <HistoryPlugin />
+                    <AutoFocusPlugin />
+                    <TreeViewPlugin />
                 </div>
             </div>
         </LexicalComposer>
-    )
+    );
 }
