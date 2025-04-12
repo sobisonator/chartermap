@@ -1,0 +1,12 @@
+#table,name,scope_note,relationship,relationship_target_table,relationship_target
+languages,"latin", "what romans spoke", "", "", ""
+languages,"old english", "what anglo-saxons spoke", "", "", ""
+styles,"fancy", "a nice style", "", "", ""
+styles,"ugly", "an unpleasant style", "", "", ""
+scripts,"anglo-caroline", "script used by caroline", "", "", ""
+scripts,"minuscule", "small letters", "", "", ""
+diplomatic_form_types, "dating clause", "clauses, for dates", "", "", ""
+diplomatic_form_types, "invocation", "a clause for invoking", "", "", ""
+diplomatic_form_types, "proem", "a clause, for proemiating", "", "", ""
+diplomatic_forms, "anno domini", "year of the lord", "P127", "diplomatic_form_types", "dating clause"
+diplomatic_forms, "indiction", "not an indictment", "P127", "diplomatic_form_types", "dating clause"

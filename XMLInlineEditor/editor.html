@@ -1,21 +1,773 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
-
+<html lang="en">
 <head>
-    <meta charset="utf-8">
-    <title>Multilayer Inline Editor for XML</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Overlapping Markup Editor</title>
+  <link rel="stylesheet" href="style/editor.css">
 </head>
-
 <body>
-    <section>
-        <h1>Multilayer Inline Editor for XML</h1>
-        <textarea   id="textarea_milex"
-                    name="milex"
-                    rows="15"
-                    cols="80"
-                    placeholder="Put charters in me">
-        </textarea>
-    </section>
-</body>
+  <header>
+    <h1>Overlapping Markup Editor</h1>
+  </header>
+  <div class="container">
+    <div class="bg-panel">
 
+      <div class="tabs">
+        <div class="tab active" data-tab="editor">Edit Text</div>
+        <div class="tab" data-tab="previewTab">Preview</div>
+      </div>
+
+      <div id="editor" class="tab-content active">
+        <textarea id="textInput" spellcheck="false" placeholder="Upload .txt file or paste document text here..."></textarea> 
+        <!-- TODO: Guidance on how to format text per conventions should be in a CMSable block
+         How to make something CMSable in a WP plugin? -->
+        <br>
+        Upload file <input type="file" id="fileInput" accept=".txt">
+      </div>
+
+      <div id="previewTab" class="tab-content">
+        <!-- Toggle panel for Markup Class highlighting -->
+        <div id="togglePanel"></div>
+        <!-- Preview box -->
+        <div id="preview" tabindex="0" aria-label="Text preview with markups"></div>
+        <!-- Button to toggle markup list panel -->
+        <button id="toggleMarkupListPanelBtn">Toggle Markup List Panel</button>
+        <!-- Markup List Panel beneath preview -->
+        <div id="markupListPanel"></div>
+      </div>
+
+      <!-- Action panel -->
+      <div style="margin-top:1em;">
+        <button id="exportBtn">Export Markups</button>
+        <button id="importBtn">Import Markups</button>
+        <button id="uploadCVBtn">Upload Controlled Vocabulary</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Tooltip for Markup Form (for adding/editing) -->
+  <div id="markupFormTooltip" class="tooltip" style="display:none;"></div>
+  <!-- Tooltip for Listing Markups on click -->
+  <div id="markupsListTooltip" class="tooltip" style="display:none;"></div>
+
+  <script>
+    /***********************
+     * Global Data & Setup *
+     ***********************/
+    let textContent = "";
+    // Each markup: { id, start, end, markupClass, metadata: {} }
+    // TODO: Consider scenarios that could cause this markup format to break if the text is edited
+    // Scenario 1: Text is added or removed within or before the end of the markup
+      // In scenario 1, the markup shifts onto a new region as defined by the start and endbounds of the markup
+      // THIS IS NOT GOOD!
+    let markups = [];
+    let currentEditingMarkup = null; // if null, we're in add new markup mode
+    let controlledVocab = {}; // Controlled vocabulary object, keyed by normalised table name
+
+    // Mapping markup classes to distinct base colours
+    // TODO: Make this dynamic, rather than hardcoded
+    const markupColors = {
+      "has_language_of": "#FFAAAA",
+      "has_style": "#AAFFAA",
+      "employs_script": "#AAAFFF",
+      "was_written_by": "#FFFFAA",
+      "grantor": "#FFAADD",
+      "beneficiary": "#AADDFF",
+      "former_title_holder": "#DDAAFF",
+      "doc_witness": "#FFDDAA",
+      "mentioned_person": "#DDFFAA",
+      "took_place_at": "#AADDDD",
+      "transfers_title_to_place": "#FFDDFF",
+      "refers_to_location": "#DDAA55",
+      "boundary_instruction": "#AA55DD",
+      "transfers_title_to_right": "#55AADD",
+      "diplomatic_form": "#55DDAA"
+    };
+
+    // Conditional fields for each markup class (these define the field id and label)
+    // TODO: Make this dynamic, not hardcoded
+    const conditionalFields = {
+      "has_language_of": [
+        { id: "has_language_of", label: "Language (P72)", placeholder: "Enter language" }
+      ],
+      "has_style": [
+        { id: "has_style", label: "Style (TXP12)", placeholder: "Enter style" }
+      ],
+      "employs_script": [
+        { id: "employs_script", label: "Script (TXP16)", placeholder: "Enter script" }
+      ],
+      "was_written_by": [
+        { id: "was_written_by", label: "Was Written By (TXP5)", placeholder: "Enter author details" }
+      ],
+      "grantor": [
+        { id: "grantor", label: "Grantor (P23)", placeholder: "Enter grantor details" }
+      ],
+      "beneficiary": [
+        { id: "beneficiary", label: "Beneficiary (P22)", placeholder: "Enter beneficiary details" }
+      ],
+      "former_title_holder": [
+        { id: "former_title_holder", label: "Former Title Holder", placeholder: "Enter former title holder details" } // TODO: Determine CRMTex ID for this
+      ],
+      "doc_witness": [
+        { id: "doc_witness", label: "Document Witness (P11)", placeholder: "Enter document witness details" }
+      ],
+      "mentioned_person": [
+        { id: "mentioned_person", label: "Mentioned Person (P67)", placeholder: "Enter mentioned person details" }
+      ],
+      "took_place_at": [
+        { id: "took_place_at", label: "Took Place At (P7)", placeholder: "Enter location details" }
+      ],
+      "transfers_title_to_place": [
+        { id: "transfers_title_to_place", label: "Transfers Title To Place (P24)", placeholder: "Enter title transfer place details" }
+      ],
+      "refers_to_location": [
+        { id: "refers_to_location", label: "Refers To Location (P67)", placeholder: "Enter location details" }
+      ],
+      "boundary_instruction": [
+        { id: "boundary_instruction", label: "Boundary Instruction (E29)", placeholder: "Enter boundary instruction details" }
+      ],
+      "transfers_title_to_right": [
+        { id: "transfers_title_to_right", label: "Transfers Title To Right", placeholder: "Enter title transfer right details" } // TODO: Determine CRMTex ID for this
+      ],
+      "diplomatic_form": [
+        { id: "diplomatic_form", label: "Diplomatic Form", placeholder: "Enter diplomatic form details" } // TODO: Determine CRMTex ID for this
+      ]
+    };
+
+    // Global object to control display of markup class highlighting (true = on)
+    const displayClasses = {};
+    Object.keys(markupColors).forEach(cls => {
+      displayClasses[cls] = true;
+    });
+
+    //#region utility functions
+    function hexToRgb(hex) {
+      hex = hex.replace("#", "");
+      if (hex.length === 3) hex = hex.split("").map(c => c + c).join("");
+      const bigint = parseInt(hex, 16);
+      return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
+    }
+    function rgbToHex(rgb) {
+      return "#" + rgb.map(x => {
+        const hex = x.toString(16);
+        return hex.length === 1 ? "0" + hex : hex;
+      }).join("");
+    }
+    function blendColors(colors) {
+      if (colors.length === 0) return "";
+      let sum = [0, 0, 0];
+      colors.forEach(hex => {
+        let rgb = hexToRgb(hex);
+        sum[0] += rgb[0];
+        sum[1] += rgb[1];
+        sum[2] += rgb[2];
+      });
+      let avg = sum.map(c => Math.round(c / colors.length));
+      return rgbToHex(avg);
+    }
+    // Ensure tooltip does not go off-screen
+    function adjustTooltipPosition(tooltip) {
+      const rect = tooltip.getBoundingClientRect();
+      let newX = rect.left;
+      let newY = rect.top;
+      if(rect.right > window.innerWidth) {
+        newX = window.innerWidth - rect.width - 10;
+      }
+      if(rect.bottom > window.innerHeight) {
+        newY = window.innerHeight - rect.height - 10;
+      }
+      tooltip.style.left = newX + "px";
+      tooltip.style.top = newY + "px";
+    }
+    // normalise a table name: lowercase and remove trailing "s"
+    function normaliseCVKey(key) {
+      key = key.toLowerCase().trim();
+      if(key.endsWith("s")) {
+        return key.slice(0, -1);
+      }
+      return key;
+    }
+    //#endregion utility functions
+    
+    //#region persistence functions
+    function persistData() {
+      const data = { text: textContent, markups: markups, controlledVocab: controlledVocab };
+      localStorage.setItem("markupEditorData", JSON.stringify(data));
+    }
+    function loadPersistedData() {
+      const data = localStorage.getItem("markupEditorData");
+      if (data) {
+        try {
+          const parsed = JSON.parse(data);
+          textContent = parsed.text || "";
+          markups = parsed.markups || [];
+          controlledVocab = parsed.controlledVocab || {};
+          document.getElementById("textInput").value = textContent;
+          renderPreview();
+          updateMarkupListPanel();
+        } catch(e) {
+          console.error("Error parsing stored data", e);
+        }
+      }
+    }
+    //#endregion persistence functions
+    //#region render preview
+    function renderPreview() {
+      const preview = document.getElementById("preview");
+      preview.innerHTML = "";
+      for (let i = 0; i < textContent.length; i++) {
+        const span = document.createElement("span");
+        span.classList.add("char-span");
+        span.dataset.index = i;
+        span.textContent = textContent[i];
+        let coveringColors = [];
+        markups.forEach(m => {
+          if (i >= m.start && i < m.end) {
+            if (displayClasses[m.markupClass]) {
+              coveringColors.push(markupColors[m.markupClass] || "#CCCCCC");
+            }
+          }
+        });
+        if (coveringColors.length > 0) {
+          span.style.backgroundColor = blendColors(coveringColors);
+          span.style.opacity = 0.8;
+        }
+        preview.appendChild(span);
+      }
+    }
+    //#endregion render preview
+
+    //#region markup list panel
+    function updateTogglePanel() {
+      const togglePanel = document.getElementById("togglePanel");
+      togglePanel.innerHTML = "<strong>Toggle Markup Classes:</strong> ";
+      Object.keys(markupColors).forEach(cls => {
+        const label = document.createElement("label");
+        label.innerHTML = `<input type="checkbox" data-class="${cls}" checked> ${cls}`;
+        togglePanel.appendChild(label);
+      });
+      togglePanel.querySelectorAll("input[type='checkbox']").forEach(cb => {
+        cb.addEventListener("change", function() {
+          const cls = this.dataset.class;
+          displayClasses[cls] = this.checked;
+          renderPreview();
+        });
+      });
+    }
+
+    function updateMarkupListPanel() {
+      const panel = document.getElementById("markupListPanel");
+      panel.innerHTML = "";
+      markups.forEach(m => {
+        const item = document.createElement("div");
+        item.classList.add("markup-panel-item");
+        let html = `<div class="markup-panel-summary">[${m.start}-${m.end}] ${m.markupClass}`;
+        html += ` <button class="editBtn" data-id="${m.id}">Edit</button>`;
+        html += ` <span class="toggle-details" data-open="false">&#x25BC;</span></div>`;
+        html += `<div class="markup-panel-details">`;
+        if(m.metadata && Object.keys(m.metadata).length > 0) {
+          html += "<ul>";
+          Object.keys(m.metadata).forEach(key => {
+            html += `<li><strong>${key}:</strong> ${m.metadata[key]}</li>`;
+          });
+          html += "</ul>";
+        } else {
+          html += "<em>No additional details</em>";
+        }
+        html += "</div>";
+        item.innerHTML = html;
+        panel.appendChild(item);
+      });
+      panel.querySelectorAll(".toggle-details").forEach(toggle => {
+        toggle.addEventListener("click", function(e) {
+          const parent = this.closest(".markup-panel-item");
+          const details = parent.querySelector(".markup-panel-details");
+          if(this.dataset.open === "false") {
+            details.style.display = "block";
+            this.dataset.open = "true";
+            this.innerHTML = "&#x25B2;";
+          } else {
+            details.style.display = "none";
+            this.dataset.open = "false";
+            this.innerHTML = "&#x25BC;";
+          }
+          e.stopPropagation();
+        });
+      });
+      panel.querySelectorAll(".editBtn").forEach(btn => {
+        btn.addEventListener("click", function(e) {
+          const id = parseInt(this.dataset.id);
+          const markup = markups.find(m => m.id === id);
+          if(markup) {
+            const previewRect = document.getElementById("preview").getBoundingClientRect();
+            showMarkupFormTooltip(previewRect.left + 20, previewRect.top + 20, markup.start, markup.end, markup);
+          }
+          e.stopPropagation();
+        });
+      });
+    }
+    //#endregion markup list panel
+
+    //#region tooltip sizing
+    function makeDraggableResizable(elem) {
+      const header = elem.querySelector(".tooltip-header");
+      if(header) {
+        header.addEventListener("mousedown", function(e) {
+          e.preventDefault();
+          let startX = e.clientX;
+          let startY = e.clientY;
+          const origX = parseInt(elem.style.left) || 0;
+          const origY = parseInt(elem.style.top) || 0;
+          function onMouseMove(e) {
+            let dx = e.clientX - startX;
+            let dy = e.clientY - startY;
+            let newX = origX + dx;
+            let newY = origY + dy;
+            newX = Math.max(0, Math.min(newX, window.innerWidth - elem.offsetWidth - 10));
+            newY = Math.max(0, Math.min(newY, window.innerHeight - elem.offsetHeight - 10));
+            elem.style.left = newX + "px";
+            elem.style.top = newY + "px";
+          }
+          function onMouseUp() {
+            document.removeEventListener("mousemove", onMouseMove);
+            document.removeEventListener("mouseup", onMouseUp);
+          }
+          document.addEventListener("mousemove", onMouseMove);
+          document.addEventListener("mouseup", onMouseUp);
+        });
+      }
+      const resizer = elem.querySelector(".resizer");
+      if(resizer) {
+        resizer.addEventListener("mousedown", function(e) {
+          e.preventDefault();
+          let startX = e.clientX;
+          let startY = e.clientY;
+          const origWidth = elem.offsetWidth;
+          const origHeight = elem.offsetHeight;
+          function onMouseMove(e) {
+            let dx = e.clientX - startX;
+            let dy = e.clientY - startY;
+            elem.style.width = (origWidth + dx) + "px";
+            elem.style.height = (origHeight + dy) + "px";
+          }
+          function onMouseUp() {
+            document.removeEventListener("mousemove", onMouseMove);
+            document.removeEventListener("mouseup", onMouseUp);
+            adjustTooltipPosition(elem);
+          }
+          document.addEventListener("mousemove", onMouseMove);
+          document.addEventListener("mouseup", onMouseUp);
+        });
+      }
+    }
+    //#endregion tooltip sizing
+    //#region markup form tooltip
+    function showMarkupFormTooltip(x, y, start, end, markup) {
+      currentEditingMarkup = markup || null;
+      const tooltip = document.getElementById("markupFormTooltip");
+      let html = '<div class="tooltip-header">Markup Form</div>';
+      html += '<form id="tooltipMarkupForm">';
+      html += '<input type="hidden" id="tooltipMarkupStart" value="'+ start +'">';
+      html += '<input type="hidden" id="tooltipMarkupEnd" value="'+ end +'">';
+      html += '<label for="tooltipMarkupClass">Markup Class</label>';
+      html += '<select id="tooltipMarkupClass" required>';
+      html += '<option value="">Select class</option>';
+      Object.keys(conditionalFields).forEach(cls => {
+         html += '<option value="'+ cls +'">'+ cls +'</option>';
+      });
+      html += '</select>';
+      html += '<div id="conditionalFieldsContainer"></div>';
+      html += '<div style="margin-top:0.5em;">';
+      html += '<button type="submit" id="tooltipSaveBtn">Save Markup</button>';
+      if (markup) {
+        html += '<button type="button" id="tooltipDeleteBtn" style="background:#f88;">Delete Markup</button>';
+      }
+      html += '<button type="button" id="tooltipCancelBtn">Cancel</button>';
+      html += '</div></form>';
+      html += '<div class="resizer"></div>';
+      tooltip.innerHTML = html;
+      
+      if (markup) {
+        document.getElementById("tooltipMarkupClass").value = markup.markupClass;
+        updateConditionalFields(markup.metadata);
+      } else {
+        updateConditionalFields();
+      }
+      
+      document.getElementById("tooltipMarkupClass").addEventListener("change", function() {
+        updateConditionalFields();
+      });
+      
+      document.getElementById("tooltipMarkupForm").addEventListener("submit", function(e) {
+        e.preventDefault();
+        saveMarkupFromTooltip();
+      });
+      
+      if (markup) {
+        document.getElementById("tooltipDeleteBtn").addEventListener("click", function() {
+          deleteMarkupFromTooltip();
+        });
+      }
+      document.getElementById("tooltipCancelBtn").addEventListener("click", function() {
+        hideMarkupFormTooltip();
+      });
+      
+      tooltip.style.left = (x + 20) + "px";
+      tooltip.style.top = y + "px";
+      tooltip.style.display = "block";
+      adjustTooltipPosition(tooltip);
+      makeDraggableResizable(tooltip);
+    }
+    function hideMarkupFormTooltip() {
+      document.getElementById("markupFormTooltip").style.display = "none";
+      currentEditingMarkup = null;
+    }
+    //#endregion markup form tooltip
+    
+    //#region controlled vocabulary UI
+
+    // This function renders the conditional field for the selected markup class.
+    // If a controlled vocabulary exists for the field (by matching normalised field id),
+    // it renders an input with a datalist (searchable dropdown). Otherwise, a text input is rendered.
+    // Also, if the chosen term has a relationship, a second dropdown is toggled.
+    function updateConditionalFields(prefillData) {
+      const container = document.getElementById("conditionalFieldsContainer");
+      container.innerHTML = "";
+      const selectedClass = document.getElementById("tooltipMarkupClass").value;
+      if (selectedClass && conditionalFields[selectedClass]) {
+        conditionalFields[selectedClass].forEach(field => {
+          let value = (prefillData && prefillData[field.id]) || "";
+          // Check if a controlled vocabulary exists for this field id
+          let normKey = normaliseCVKey(field.id);
+          if(controlledVocab[normKey] && controlledVocab[normKey].length > 0) {
+            // Render an input with datalist for searchable dropdown
+            let inputId = "conditional_"+field.id;
+            let datalistId = "datalist_"+field.id;
+            let fieldHtml = '<label for="'+ inputId +'">'+ field.label +'</label>';
+            fieldHtml += '<input type="text" id="'+ inputId +'" list="'+ datalistId +'" placeholder="'+ field.placeholder +'" value="'+ value +'">';
+            fieldHtml += '<datalist id="'+ datalistId +'">';
+            controlledVocab[normKey].forEach(term => {
+              fieldHtml += '<option value="'+ term.name +'">' + term.scope_note + '</option>';
+            });
+            fieldHtml += '</datalist>';
+            container.innerHTML += fieldHtml;
+            // Listen for changes to check for relationship fields
+            setTimeout(() => { // slight delay to ensure element exists
+              const inputElem = document.getElementById(inputId);
+              inputElem.addEventListener("change", function() {
+                let selectedTerm = controlledVocab[normKey].find(term => term.name === this.value);
+                // Remove any existing secondary dropdown first
+                let existing = document.getElementById("secondary_"+field.id);
+                if(existing) existing.remove();
+                if(selectedTerm && selectedTerm.relationship && selectedTerm.relationship.trim() !== "") {
+                  // Render secondary dropdown using controlled vocab from the relationship_target_table
+                  let targetKey = normaliseCVKey(selectedTerm.relationship_target_table);
+                  if(controlledVocab[targetKey] && controlledVocab[targetKey].length > 0) {
+                    let secondaryHtml = '<label for="secondary_'+ field.id +'">Related '+ selectedTerm.relationship_target +'</label>';
+                    secondaryHtml += '<select id="secondary_'+ field.id +'">';
+                    controlledVocab[targetKey].forEach(term => {
+                      secondaryHtml += '<option value="'+ term.name +'">'+ term.name +'</option>';
+                    });
+                    secondaryHtml += '</select>';
+                    container.insertAdjacentHTML("beforeend", secondaryHtml);
+                  }
+                }
+              });
+            }, 50);
+          } else {
+            // No controlled vocabulary – render a simple text input
+            let fieldHtml = '<label for="conditional_'+ field.id +'">'+ field.label +'</label>';
+            fieldHtml += '<input type="text" id="conditional_'+ field.id +'" placeholder="'+ field.placeholder +'" value="'+ value +'">';
+            container.innerHTML += fieldHtml;
+          }
+        });
+      }
+    }
+    function saveMarkupFromTooltip() {
+      const start = parseInt(document.getElementById("tooltipMarkupStart").value);
+      const end = parseInt(document.getElementById("tooltipMarkupEnd").value);
+      const markupClass = document.getElementById("tooltipMarkupClass").value;
+      if (!markupClass || start >= end) {
+        alert("Please fill in required fields correctly.");
+        return;
+      }
+      let metadata = {};
+      if (conditionalFields[markupClass]) {
+        conditionalFields[markupClass].forEach(field => {
+          const elem = document.getElementById("conditional_"+field.id);
+          if(elem) {
+            metadata[field.id] = elem.value;
+            // Check for secondary dropdown value if exists
+            const secondary = document.getElementById("secondary_"+field.id);
+            if(secondary) {
+              metadata[field.id+"_related"] = secondary.value;
+            }
+          }
+        });
+      }
+      if (currentEditingMarkup) {
+        const idx = markups.findIndex(m => m.id === currentEditingMarkup.id);
+        if (idx !== -1) {
+          markups[idx].start = start;
+          markups[idx].end = end;
+          markups[idx].markupClass = markupClass;
+          markups[idx].metadata = metadata;
+        }
+      } else {
+        const newMarkup = { id: Date.now(), start, end, markupClass, metadata };
+        markups.push(newMarkup);
+      }
+      hideMarkupFormTooltip();
+      renderPreview();
+      persistData();
+      updateMarkupListPanel();
+    }
+    function deleteMarkupFromTooltip() {
+      if (currentEditingMarkup) {
+        markups = markups.filter(m => m.id !== currentEditingMarkup.id);
+        hideMarkupFormTooltip();
+        renderPreview();
+        persistData();
+        updateMarkupListPanel();
+      }
+    }
+    //#endregion controlled vocabulary UI
+
+    //#region markup list tooltip
+    function showMarkupsListTooltip(x, y, index) {
+      const list = markups.filter(m => index >= m.start && index < m.end);
+      if (list.length === 0) return;
+      const tooltip = document.getElementById("markupsListTooltip");
+      let html = '<div class="tooltip-header">Markups List</div>';
+      html += '<div id="markupsListContent">';
+      list.forEach(m => {
+        html += '<div class="markup-item" data-id="'+ m.id +'">';
+        html += '<div class="markup-summary">['+ m.start +'-'+ m.end +'] '+ m.markupClass;
+        html += ' <span class="toggle-details" data-open="false">&#x25BC;</span>';
+        html += ' <button class="editBtn" data-id="'+ m.id +'">Edit</button></div>';
+        html += '<div class="markup-details">';
+        if(m.metadata && Object.keys(m.metadata).length > 0) {
+          html += '<ul>';
+          Object.keys(m.metadata).forEach(key => {
+            html += '<li><strong>'+ key +':</strong> '+ m.metadata[key] +'</li>';
+          });
+          html += '</ul>';
+        } else {
+          html += '<em>No additional details</em>';
+        }
+        html += '</div></div>';
+      });
+      html += '</div>';
+      html += '<button type="button" id="closeMarkupsListBtn">Close</button>';
+      html += '<div class="resizer"></div>';
+      tooltip.innerHTML = html;
+      tooltip.style.left = (x + 20) + "px";
+      tooltip.style.top = y + "px";
+      tooltip.style.display = "block";
+      adjustTooltipPosition(tooltip);
+      makeDraggableResizable(tooltip);
+      tooltip.querySelectorAll(".toggle-details").forEach(toggle => {
+        toggle.addEventListener("click", function(e) {
+          const parent = this.closest(".markup-item");
+          const details = parent.querySelector(".markup-details");
+          if(this.dataset.open === "false") {
+            details.style.display = "block";
+            this.dataset.open = "true";
+            this.innerHTML = "&#x25B2;";
+          } else {
+            details.style.display = "none";
+            this.dataset.open = "false";
+            this.innerHTML = "&#x25BC;";
+          }
+          e.stopPropagation();
+        });
+      });
+      tooltip.querySelectorAll(".editBtn").forEach(btn => {
+        btn.addEventListener("click", function(e) {
+          const id = parseInt(this.dataset.id);
+          const markup = markups.find(m => m.id === id);
+          if (markup) {
+            hideMarkupsListTooltip();
+            showMarkupFormTooltip(x, y, markup.start, markup.end, markup);
+          }
+          e.stopPropagation();
+        });
+      });
+      document.getElementById("closeMarkupsListBtn").addEventListener("click", function() {
+        hideMarkupsListTooltip();
+      });
+    }
+    function hideMarkupsListTooltip() {
+      document.getElementById("markupsListTooltip").style.display = "none";
+    }
+    //#endregion markup list tooltip
+
+    //#region controlled vocabulary upload
+    document.getElementById("uploadCVBtn").addEventListener("click", function() {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = ".csv,text/csv";
+      input.onchange = function(e) {
+        const file = e.target.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          parseCSVToVocabulary(evt.target.result);
+          persistData();
+          alert("Controlled vocabulary loaded.");
+        };
+        reader.readAsText(file);
+      };
+      input.click();
+    });
+    
+    // Simple CSV parser to populate controlledVocab object.
+    // It expects a header row and rows like:
+    // #table,name,scope_note,relationship,relationship_target_table,relationship_target
+    function parseCSVToVocabulary(csvText) {
+      const lines = csvText.split(/\r?\n/).filter(line => line.trim() !== "");
+      // Skip lines starting with '#' if they are comments (but not the header if it starts with #table)
+      let headerLine = lines[0];
+      const headers = headerLine.split(",").map(h => h.trim().replace(/^"|"$/g, ""));
+      // Find indexes of each column
+      const idxTable = headers.indexOf("#table");
+      const idxName = headers.indexOf("name");
+      const idxScope = headers.indexOf("scope_note");
+      const idxRel = headers.indexOf("relationship");
+      const idxRelTargetTable = headers.indexOf("relationship_target_table");
+      const idxRelTarget = headers.indexOf("relationship_target");
+      // Process subsequent rows
+      for (let i = 1; i < lines.length; i++) {
+        const row = lines[i].split(",").map(col => col.trim().replace(/^"|"$/g, ""));
+        if(row.length < headers.length) continue; // skip malformed rows
+        const tableKey = normaliseCVKey(row[idxTable]);
+        const term = {
+          name: row[idxName],
+          scope_note: row[idxScope],
+          relationship: row[idxRel],
+          relationship_target_table: row[idxRelTargetTable],
+          relationship_target: row[idxRelTarget]
+        };
+        if(!controlledVocab[tableKey]) {
+          controlledVocab[tableKey] = [];
+        }
+        controlledVocab[tableKey].push(term);
+      }
+    }
+    //#endregion controlled vocabulary upload
+
+    //#region event listeners
+    // Tab switching
+    document.querySelectorAll(".tab").forEach(tab => {
+      tab.addEventListener("click", function() {
+        document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+        this.classList.add("active");
+        document.querySelectorAll(".tab-content").forEach(tc => tc.classList.remove("active"));
+        document.getElementById(this.dataset.tab).classList.add("active");
+      });
+    });
+    // Text input events
+    document.getElementById("textInput").addEventListener("input", function() {
+      textContent = this.value;
+      renderPreview();
+      persistData();
+    });
+    document.getElementById("fileInput").addEventListener("change", function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        textContent = evt.target.result;
+        document.getElementById("textInput").value = textContent;
+        renderPreview();
+        persistData();
+      };
+      reader.readAsText(file);
+    });
+    // Preview: on mouseup, if selection exists, show markup form tooltip
+    document.getElementById("preview").addEventListener("mouseup", function(e) {
+      setTimeout(() => {
+        const sel = window.getSelection();
+        if (sel.rangeCount > 0 && !sel.isCollapsed) {
+          const range = sel.getRangeAt(0);
+          if (this.contains(range.startContainer)) {
+            const startSpan = range.startContainer.nodeType === 3 ? range.startContainer.parentElement : range.startContainer;
+            const endSpan = range.endContainer.nodeType === 3 ? range.endContainer.parentElement : range.endContainer;
+            if (startSpan && endSpan && startSpan.dataset.index && endSpan.dataset.index) {
+              let startIndex = parseInt(startSpan.dataset.index);
+              let endIndex = parseInt(endSpan.dataset.index) + 1;
+              if (startIndex > endIndex) [startIndex, endIndex] = [endIndex, startIndex];
+              const rect = range.getBoundingClientRect();
+              showMarkupFormTooltip(rect.right, rect.top, startIndex, endIndex, null);
+            }
+          }
+        } else {
+          hideMarkupFormTooltip();
+        }
+      }, 10);
+    });
+    // Preview: on click (when selection collapsed), show list of markups covering that character
+    document.getElementById("preview").addEventListener("click", function(e) {
+      const sel = window.getSelection();
+      if (sel.isCollapsed) {
+        const target = e.target;
+        if (target.classList.contains("char-span") && target.dataset.index) {
+          const index = parseInt(target.dataset.index);
+          showMarkupsListTooltip(e.pageX, e.pageY, index);
+        } else {
+          hideMarkupsListTooltip();
+        }
+      }
+    });
+    // Toggle Markup List Panel
+    document.getElementById("toggleMarkupListPanelBtn").addEventListener("click", function() {
+      const panel = document.getElementById("markupListPanel");
+      panel.style.display = (panel.style.display === "none" || panel.style.display === "") ? "block" : "none";
+    });
+    // Export / Import
+    document.getElementById("exportBtn").addEventListener("click", function() {
+      const data = { text: textContent, markups: markups, controlledVocab: controlledVocab };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "markupData.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+    document.getElementById("importBtn").addEventListener("click", function() {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = ".json,application/json";
+      input.onchange = function(e) {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          try {
+            const data = JSON.parse(evt.target.result);
+            textContent = data.text || "";
+            markups = data.markups || [];
+            controlledVocab = data.controlledVocab || {};
+            document.getElementById("textInput").value = textContent;
+            renderPreview();
+            persistData();
+            updateMarkupListPanel();
+          } catch (ex) {
+            alert("Invalid JSON file.");
+          }
+        };
+        reader.readAsText(file);
+      };
+      input.click();
+    });
+    //#endregion event listeners
+    /***********************
+     * Initial Load        *
+     ***********************/
+    updateTogglePanel();
+    loadPersistedData();
+  </script>
+</body>
 </html>
