@@ -3,7 +3,6 @@ from src import *
 
 SOURCE_TEXT_FOLDER_NAME = "Source texts"
 #TODO Add a way to feed the program source texts via an API? Is it worth it, if the submission of new editions will be so irregular?
-# Consider this as a question for the SYMPOSIUM
 SCRIPT_PATH = pathlib.Path(__file__).parent
 SOURCE_TEXT_FOLDER_PATH = pathlib.Path(SCRIPT_PATH / SOURCE_TEXT_FOLDER_NAME)
 SOURCE_TEXT_FILES = list(SOURCE_TEXT_FOLDER_PATH.glob("*.txt"))
@@ -22,8 +21,30 @@ def setup_database():
     db.clear_database() # Scrap everything in the schema
     db.create_database() # Re-make it
 
-reset_database = input("Clear and remove database? Type y to clear or any other input to proceed: ")
-if reset_database.lower() == "y":
-    setup_database()
+######################
+### Database setup ###
+######################
+# reset_database = input("Clear and remove database? Type y to clear or any other input to proceed: ")
+# if reset_database.lower() == "y":
+#    setup_database()
 
-markup_window = MarkupWindow()
+
+###############
+### Testing ###
+###############
+ABOVE_PROJECT_PATH = "../../../" # One folder above project root # TODO: Define global values for this
+TEST_CSV_PATH = ABOVE_PROJECT_PATH + "data/test/Anglo-Saxon_Charters_transformed_v2.csv"
+SECRETS_PATH = ABOVE_PROJECT_PATH + "secrets/"
+GOOGLE_AI_STUDIO_KEY = SECRETS_PATH + "google_api_key.txt" # TODO: Use environment variable in prod
+
+test_csv = ImportedCSV(
+    csv_input = TEST_CSV_PATH,
+    separator = ";"
+    )
+
+test_id = test_csv.charter_get_data_by_uid(charter_uid = 10, field = "Charter id")
+test_gist = test_csv.charter_get_data_by_uid(charter_uid = 10, field = "Date of issue")
+print(f"Test ID = {test_id} | Test gist = {test_gist}")
+
+#test_lookup = test_csv.charter_lookup(lookup_field = "Charter id", lookup_value = "S 308")
+#print(f"Test lookup = {test_lookup}")

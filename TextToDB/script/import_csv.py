@@ -54,21 +54,3 @@ class ImportedCSV():
             if row[lookup_field] == lookup_value:
                 matches.append(row)
         return matches
-
-###############
-### Testing ###
-###############
-ABOVE_PROJECT_PATH = "../../../" # One folder above project root # TODO: Define global values for this
-TEST_CSV_PATH = ABOVE_PROJECT_PATH + "data/test/Anglo-Saxon_Charters_transformed_v2.csv"
-
-test_csv = ImportedCSV(
-    csv_input = TEST_CSV_PATH,
-    separator = ";"
-    )
-
-#test_id = test_csv.charter_get_data_by_uid(charter_uid = 10, field = "Charter id")
-#test_gist = test_csv.charter_get_data_by_uid(charter_uid = 10, field = "Gist")
-#print(f"Test ID = {test_id} | Test gist = {test_gist}")
-
-test_lookup = test_csv.charter_lookup(lookup_field = "Charter id", lookup_value = "S 308")
-print(f"Test lookup = {test_lookup}")
