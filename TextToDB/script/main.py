@@ -34,17 +34,22 @@ def setup_database():
 ###############
 ABOVE_PROJECT_PATH = "../../../" # One folder above project root # TODO: Define global values for this
 TEST_CSV_PATH = ABOVE_PROJECT_PATH + "data/test/Anglo-Saxon_Charters_transformed_v2.csv"
-SECRETS_PATH = ABOVE_PROJECT_PATH + "secrets/"
-GOOGLE_AI_STUDIO_KEY = SECRETS_PATH + "google_api_key.txt" # TODO: Use environment variable in prod
 
-test_csv = ImportedCSV(
-    csv_input = TEST_CSV_PATH,
-    separator = ";"
-    )
+if False:
 
-test_id = test_csv.charter_get_data_by_uid(charter_uid = 10, field = "Charter id")
-test_gist = test_csv.charter_get_data_by_uid(charter_uid = 10, field = "Date of issue")
-print(f"Test ID = {test_id} | Test gist = {test_gist}")
+    test_csv = ImportedCSV(
+        csv_input = TEST_CSV_PATH,
+        separator = ";"
+        )
 
-#test_lookup = test_csv.charter_lookup(lookup_field = "Charter id", lookup_value = "S 308")
-#print(f"Test lookup = {test_lookup}")
+    test_id = test_csv.charter_get_data_by_uid(charter_uid = 10, field = "Charter id")
+    test_gist = test_csv.charter_get_data_by_uid(charter_uid = 10, field = "Date of issue")
+    print(f"Test ID = {test_id} | Test gist = {test_gist}")
+
+    #test_lookup = test_csv.charter_lookup(lookup_field = "Charter id", lookup_value = "S 308")
+    #print(f"Test lookup = {test_lookup}")
+
+if True:
+    markup_flagger = MarkupFlagger()
+    print("Testing genai")
+    print(markup_flagger.get_response("Say hello and tell me about yourself"))
