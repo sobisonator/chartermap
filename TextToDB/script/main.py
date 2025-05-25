@@ -35,8 +35,7 @@ def setup_database():
 ABOVE_PROJECT_PATH = "../../../" # One folder above project root # TODO: Define global values for this
 TEST_CSV_PATH = ABOVE_PROJECT_PATH + "data/test/Anglo-Saxon_Charters_transformed_v2.csv"
 
-if False:
-
+if True:
     test_csv = ImportedCSV(
         csv_input = TEST_CSV_PATH,
         separator = ";"
@@ -50,6 +49,6 @@ if False:
     #print(f"Test lookup = {test_lookup}")
 
 if True:
-    markup_flagger = MarkupFlagger()
     print("Testing genai")
-    print(markup_flagger.get_response("Say hello and tell me about yourself"))
+    markup_flagger = MarkupFlagger()
+    markup_flagger.flag_markups("Dating clause")

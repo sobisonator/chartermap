@@ -1,5 +1,4 @@
 import re
-import pandas as pd
 
 class ImportedCSV():
     def __init__(self,
