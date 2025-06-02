@@ -11,6 +11,8 @@ MARKUP_TYPES_PATH = "../data/markup_types.csv"
 LLM_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
 LLM_MODEL = "gemma-3-12b-it"
 
+# TODO: Finetuning Gemma on cloud GPU https://huggingface.co/blog/gemma-peft
+
 class MarkupFlagger():
     # Uses Google AI Studio's Gemma 3 12B (free model, text )
     def __init__(self):
