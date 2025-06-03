@@ -2,6 +2,7 @@ from google import genai
 from google.genai.types import HttpOptions, CreateTuningJobConfig
 import time
 import pandas
+import json
 
 ABOVE_PROJECT_PATH = "../../../" # TODO: Use globals for these
 SECRETS_PATH = ABOVE_PROJECT_PATH + "secrets/" 
@@ -16,9 +17,13 @@ LLM_MODEL = "gemma-3-12b-it" # TBD gemini-2.0.flash-lite might be used for finet
 class MarkupFlagger():
     # Uses Google AI Studio's Gemma 3 12B (free model, text )
     def __init__(self):
+        if "gemma" not in LLM_MODEL:
+            http_options = HttpOptions(api_version="v1")
+        else:
+            http_options = None
         self.client = genai.Client(
             api_key = GEMINI_API_KEY,
-            http_options = HttpOptions(api_version="v1")    
+            http_options = http_options
         )
         # We define a structure to create a "system-prompt" equivalent
         # Following https://ai.google.dev/gemma/docs/core/prompt-structure
@@ -46,7 +51,11 @@ class MarkupFlagger():
         # <type>typename</type><class>classname</class>
         # In future we can train this to use the IDs for the type and class
         # ...but for now we will use names
-        self.training_dataset = {
+        
+        # This function generates a .jsonl file which is uploaded to Google Cloud storage
+        # The file is saved in ABOVE_PROJECT_PATH/data/generated_training_datasets
+        # Thence it is used to finetune the model
+        training_dataset = {
             "systemInstruction": {
                 "role": "system",
                 "parts": [
@@ -78,13 +87,17 @@ class MarkupFlagger():
                 }
             ]
             for message in training_sample:
-                self.training_dataset["contents"].append(message)
+                training_dataset["contents"].append(message)
+        with open(ABOVE_PROJECT_PATH + "data/generated_training_datasets/markup_training.jsonl", "w") as f:
+            json.dump(training_dataset, f)
+        
 
     def tune_markup_model(self):
+        # This function may be redundant if the model is tuned via the Google GenAI dashboard
         # https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini-use-supervised-tuning#google-gen-ai-sdk
         tuning_job = self.client.tunings.tune(
             base_model = "gemini-2.0-flash-lite-001",
-            training_dataset = self.training_dataset,
+            training_dataset = self.training_dataset_json,
             config = CreateTuningJobConfig(
                 tuned_model_display_name = "Charter markup identifier test"
             )
@@ -138,6 +151,7 @@ class MarkupFlagger():
             # Output context limit is 8192 tokens
             # We need to find a way to limit the number of tokens used by examples
             # while leaving space for instructions
+            # TODO: Rewrite this function to use the finetuned Chartermap-markup-flagger model
             while accumulated_tokens.total_tokens < 8193:
                 class_example_list.append(example)
                 class_example_string = "<EXAMPLE>".join(class_example_list)
@@ -145,10 +159,12 @@ class MarkupFlagger():
                     model = LLM_MODEL,
                     contents = class_example_string
                 )
-        print(self.get_response(class_example_string))
+        print(self.get_response(
+            model = LLM_MODEL,
+            prompt = class_example_string))
 
 # TESTING
-if True:
+if False:
     test = MarkupFlagger()
     test.generate_training_dataset()
-    test.tune_markup_model()
+    # test.tune_markup_model()
