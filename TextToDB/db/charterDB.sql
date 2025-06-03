@@ -9,6 +9,9 @@ CREATE TABLE IF NOT EXISTS "texts"(
 
 -- symbols
 -- Each row is a symbolic object in the text
+-- TODO: Replace this, we are not going to be storing every character as a whole DB row
+-- The complexity is just too much for what can be achieved by referencing positions in a text
+-- We still may want to consider X, Y positions and recto/folio values
 CREATE TABLE IF NOT EXISTS "symbols"(
     id BIGSERIAL PRIMARY KEY,
     symbol VARCHAR NOT NULL,
@@ -24,6 +27,11 @@ CREATE TABLE IF NOT EXISTS "markup_classes"(
     id SERIAL PRIMARY KEY,
     label VARCHAR NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS "markup_types"(
+    id SERIAL PRIMARY KEY,
+    label VARCHAR NOT NULL
+)
 
 CREATE TABLE IF NOT EXISTS "users"(
     id SERIAL PRIMARY KEY,
@@ -124,29 +132,37 @@ CREATE TABLE IF NOT EXISTS "languages"(
 
 CREATE TABLE IF NOT EXISTS "markups"(
     id BIGSERIAL PRIMARY KEY,
-    markup_class INTEGER REFERENCES markup_classes(id),
+    -- TODO: Standoff functionality
+    -- char_start -- position of character at which this markup begins
+    -- char_end -- position of character at which this markup ends
+    -- End TODO
+    markup_class INTEGER REFERENCES markup_classes(id) NOT NULL, -- Needed if we have markup_type?
+    markup_type INTEGER REFERENCES markup_types(id) NOT NULL,
     creator INTEGER REFERENCES users(id),
+    --  ## NOTE ##
+    -- Values below are defunct and being replaced to avoid multiple nullable foreign keys
+    --  ##########
     -- Linguistic / textual
-    has_language_of INTEGER REFERENCES languages(id), -- P72
-    has_style INTEGER REFERENCES styles(id), -- TXP12
-    employs_script INTEGER REFERENCES scripts(id), --TXP16
+    --has_language_of INTEGER REFERENCES languages(id), -- P72
+    --has_style INTEGER REFERENCES styles(id), -- TXP12
+    --employs_script INTEGER REFERENCES scripts(id), --TXP16
     -- People. Derived from PASE and other sources
-    was_written_by INTEGER REFERENCES people(id), --TXP5
-    grantor INTEGER REFERENCES people(id), --P23
-    beneficiary INTEGER REFERENCES people(id), --P22
-    former_title_holder INTEGER REFERENCES people(id), --P23
-    doc_witness INTEGER REFERENCES people(id), --P11
-    mentioned_person INTEGER REFERENCES people(id), --P67
+    --was_written_by INTEGER REFERENCES people(id), --TXP5
+    --grantor INTEGER REFERENCES people(id), --P23
+    --beneficiary INTEGER REFERENCES people(id), --P22
+    --former_title_holder INTEGER REFERENCES people(id), --P23
+    --doc_witness INTEGER REFERENCES people(id), --P11
+    --mentioned_person INTEGER REFERENCES people(id), --P67
     -- Non-boundary locations
-    took_place_at INTEGER REFERENCES locations(id), --P7, aka promulgation
-    transfers_title_to_place INTEGER REFERENCES locations(id), --P24
-    refers_to_location INTEGER REFERENCES locations(id), --P67
+    --took_place_at INTEGER REFERENCES locations(id), --P7, aka promulgation
+    --transfers_title_to_place INTEGER REFERENCES locations(id), --P24
+    --refers_to_location INTEGER REFERENCES locations(id), --P67
     -- Boundary instructions
-    boundary_instruction INTEGER REFERENCES boundary_instructions(id),
+    --boundary_instruction INTEGER REFERENCES boundary_instructions(id),
     -- Transferible rights
-    transfers_title_to_right INTEGER REFERENCES rights(id),
+    --transfers_title_to_right INTEGER REFERENCES rights(id),
     -- Diplomatic phrases
-    diplomatic_form INTEGER REFERENCES diplomatic_forms(id)
+    --diplomatic_form INTEGER REFERENCES diplomatic_forms(id)
 );
 
 CREATE TABLE IF NOT EXISTS "markup_associations"(

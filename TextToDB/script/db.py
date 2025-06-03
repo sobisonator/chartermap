@@ -1,4 +1,5 @@
 import psycopg2
+# TODO: Consider whether postgresql is really necessary or if we can manage with sqlite
 
 ### BEGIN DATABASE DEF ###
 

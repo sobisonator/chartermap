@@ -11,5 +11,8 @@ class CharterText():
                  ):
         self.charter_text = charter_text
 
-
-    # Accepts a string
+    def add_markup(self):
+        # Create a markup in the DB
+        query = "INSERT INTO markups" \
+        "(markup_class, creator, has_language_of, has_style, employs_script, was_written_by," \
+        "grantor, beneficiary, former_title_holder,)"

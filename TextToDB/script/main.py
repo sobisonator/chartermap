@@ -41,12 +41,12 @@ if True:
         separator = ";"
         )
 
-    test_id = test_csv.charter_get_data_by_uid(charter_uid = 10, field = "Charter id")
-    test_gist = test_csv.charter_get_data_by_uid(charter_uid = 10, field = "Date of issue")
-    print(f"Test ID = {test_id} | Test gist = {test_gist}")
+    #test_id = test_csv.charter_get_data_by_uid(charter_uid = 10, field = "Charter id")
+    #test_gist = test_csv.charter_get_data_by_uid(charter_uid = 10, field = "Date of issue")
+    #print(f"Test ID = {test_id} | Test gist = {test_gist}")
 
-    #test_lookup = test_csv.charter_lookup(lookup_field = "Charter id", lookup_value = "S 308")
-    #print(f"Test lookup = {test_lookup}")
+    test_lookup = test_csv.charter_lookup(lookup_field = "Charter id", lookup_value = "S 308")
+    print(f"Test lookup = {test_lookup}")
 
 if True:
     print("Testing genai")
