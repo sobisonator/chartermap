@@ -25,22 +25,11 @@ class MarkupFlagger():
             api_key = GEMINI_API_KEY,
             http_options = http_options
         )
-        # We define a structure to create a "system-prompt" equivalent
-        # Following https://ai.google.dev/gemma/docs/core/prompt-structure
-        # Gemma is instruction tuned and so accepts a system prompt
-        self.system_prompt = """
-        <start_of_turn>system
-        Summarise in one sentence the class of text delimited by the string `<EXAMPLE>`
-        <end_of_turn>
-
-        <start_of_turn>user
-        """ # Input proceeds here and is capped by end_prompt
-        # ^ May be obsolete
-        # TODO: Review above in light of using fine tuned model
-        self.end_prompt = "\\n<end_of_turn>\\n<start_of_turn>model\\n"
 
         markup_types_file = open(MARKUP_TYPES_PATH)
         self.markup_types = pandas.read_csv(markup_types_file, sep="|")
+
+        self.end_prompt = "\\n<end_of_turn>\\n<start_of_turn>model\\n"
 
         self.generate_training_dataset()
     
@@ -124,15 +113,42 @@ class MarkupFlagger():
             for i, checkpoint in enumerate(tuning_job.tuned_model.checkpoints):
                 print(f"Checkpoints {i+1}: {checkpoint}")
 
-    def get_response(self, model, prompt):
-        compiled_prompt = self.system_prompt + prompt + self.end_prompt
+    def generate_system_prompt(self, class_example_string):
+        # We define a structure to create a "system-prompt" equivalent
+        # Following https://ai.google.dev/gemma/docs/core/prompt-structure
+        # Gemma is instruction tuned and so accepts a system prompt
+        system_prompt = f"""
+        <start_of_turn>system
+        Find the closest match in <SEARCHTEXT> for <EXAMPLES>
+        This is called MatchString
+        Give a level of certainty, either HIGH, MEDIUM, or LOW
+        This value is called CertaintyLevel
+        If certainty is LOW, MatchString = `NO MATCH`
+        Model responses must follow the following format:
+        <match_string>MatchString</match_string><certainty>CertaintyLevel</certainty>
+        
+        <EXAMPLES>
+        {class_example_string}
+        </EXAMPLES>
+        <end_of_turn>
+
+        <start_of_turn>user
+        """ # Input proceeds here and is capped by end_prompt
+        # ^ May be obsolete
+        # TODO: Review above in light of using fine tuned model
+
+        return system_prompt
+
+    def get_response(self, model, prompt, class_example_text):
+        system_prompt = self.generate_system_prompt(class_example_text)
+        compiled_prompt = system_prompt + prompt + self.end_prompt
         response = self.client.models.generate_content(
             model=model,
             contents = compiled_prompt
         )
         return response.text
     
-    def flag_markups(self, markup_class): # TODO: Add charter_id arg
+    def flag_markups(self, markup_class, search_text): # TODO: Add charter_id arg
         # Return a list of markups in a given text which match the markup class
 
         # TODO: Investigate whether it would be useful to associate list items with a % certainty
@@ -152,7 +168,7 @@ class MarkupFlagger():
             # We need to find a way to limit the number of tokens used by examples
             # while leaving space for instructions
             # TODO: Rewrite this function to use the finetuned Chartermap-markup-flagger model
-            while accumulated_tokens.total_tokens < 8193:
+            while accumulated_tokens.total_tokens < 7193:
                 class_example_list.append(example)
                 class_example_string = "<EXAMPLE>".join(class_example_list)
                 accumulated_tokens = self.client.models.count_tokens(
@@ -161,7 +177,8 @@ class MarkupFlagger():
                 )
         print(self.get_response(
             model = LLM_MODEL,
-            prompt = class_example_string))
+            prompt = f"<SEARCHTEXT> {search_text} </SEARCHTEXT>",
+            class_example_text = class_example_string))
 
 # TESTING
 if False:
