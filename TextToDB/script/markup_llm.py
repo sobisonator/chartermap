@@ -4,12 +4,40 @@ import time
 import pandas
 import json
 
+DEBUG = True
+
 ABOVE_PROJECT_PATH = "../../../" # TODO: Use globals for these
 SECRETS_PATH = ABOVE_PROJECT_PATH + "secrets/" 
 GEMINI_API_KEY_PATH = SECRETS_PATH + "gemini_api_key.txt" # TODO: Use environment variable in prod
 GEMINI_API_KEY = open(GEMINI_API_KEY_PATH).readline()
 
 MARKUP_TYPES_PATH = "../data/markup_types.csv"
+
+# We're going to try using OpenAI's gpt-4.1-nano short context
+# It seems to work much better than Google AI's even without fine tuning
+# Using a relatively straightforward system prompt:
+
+SYSTEM_PROMPT = f"""
+User message contains two parameters, delimited by XML tags. The paramaters are as follows:
+Parameter 1, searchtext: <SEARCHTEXT></SEARCHTEXT>
+Parameter 2, class_samples: <EXAMPLES></EXAMPLES>
+Each example within <EXAMPLES> is delimited by <X></X>
+Within each Example Are sub-tags:
+<TE></TE> for the text of the example
+<TY></TY> for the type into which its text can be categorised
+System must find the substring within <SEARCHTEXT> which most closely matches the class of text within <EXAMPLES> <TE> objects. This substring is MatchString
+System must find the type of substring within <EXAMPLES> <TY> objects which corresponds to MatchString. This is TypeString
+Give a level of certainty that MatchString matches any object in the <EXAMPLES>, HIGH, MEDIUM or LOW. This is TextCertaintyLevel
+Give a level of certainty that MatchString corresponds to any subset of <X> objects with a known TypeString. This is TypeCertaintyLevel
+System message must follow the following format:
+<MATCH>MatchString</MATCH>
+<TYPE>TypeString</TYPE>
+<TEXT_CERTAINTY>TextCertaintyLevel</TEXT_CERTAINTY>
+<TYPE_CERTAINTY>TypeCertaintyLevel</TYPE_CERTAINTY>
+"""
+# We are going to avoid using <EXAMPLES> though, because this eats up tokens with every message - v inefficient
+# We instead fine-tune GPT-4.1-nano with the full example dataset
+# https://platform.openai.com/docs/guides/supervised-fine-tuning
 
 LLM_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
 LLM_MODEL = "gemma-3-12b-it" # TBD gemini-2.0.flash-lite might be used for finetuning
@@ -148,7 +176,7 @@ class MarkupFlagger():
         )
         return response.text
     
-    def flag_markups(self, markup_class, search_text): # TODO: Add charter_id arg
+    def flag_markups(self, markup_class, search_text): # TODO: Add charter_id arg (or just use search_text?)
         # Return a list of markups in a given text which match the markup class
 
         # TODO: Investigate whether it would be useful to associate list items with a % certainty
@@ -156,32 +184,26 @@ class MarkupFlagger():
         # human validation
         matching_markups = []
         # Send the AI a list of examples objects from the markup_types CSV
-        class_example_df = self.markup_types.query(f"Class == '{markup_class}'").get("Object")
+        class_example_df = self.markup_types.query(f"Class == '{markup_class}'").get(["Object","Type"])
         class_example_list = []
-        accumulated_tokens = self.client.models.count_tokens(
-            model = LLM_MODEL,
-            contents = "0"
-        )
-        for example in class_example_df:
-            # https://huggingface.co/google/gemma-3-12b-it
-            # Output context limit is 8192 tokens
-            # We need to find a way to limit the number of tokens used by examples
-            # while leaving space for instructions
-            # TODO: Rewrite this function to use the finetuned Chartermap-markup-flagger model
-            while accumulated_tokens.total_tokens < 7193:
-                class_example_list.append(example)
-                class_example_string = "<EXAMPLE>".join(class_example_list)
-                accumulated_tokens = self.client.models.count_tokens(
-                    model = LLM_MODEL,
-                    contents = class_example_string
-                )
-        print(self.get_response(
-            model = LLM_MODEL,
-            prompt = f"<SEARCHTEXT> {search_text} </SEARCHTEXT>",
-            class_example_text = class_example_string))
+
+        for index, row in class_example_df.iterrows():
+            class_example_list.append(f"<X><TE>{row["Object"]}</TE><TY>{row["Type"]}</TY></X>")
+            class_example_string = "".join(class_example_list)
+        
+        user_message = f"""
+<SEARCHTEXT>{search_text}</SEARCHTEXT>
+<EXAMPLES>{class_example_string}</EXAMPLES>
+"""
+
+        if DEBUG:
+            with open(ABOVE_PROJECT_PATH+"test_message.txt","a") as f:
+                f.write(user_message)
+                
+
 
 # TESTING
-if False:
+if True:
     test = MarkupFlagger()
-    test.generate_training_dataset()
+    test.flag_markups(markup_class="Dating clause",search_text="Regnante in perpetuum domino nostro Iesu Christo saluatore . mense Aprilio . sub die iiii . kalendas Maias . indictione vii . ego Æthelberhtus rex filio meo Eadbaldo admonitionem catholice fidei optabilem . Nobis est aptum semper inquirere . qualiter per loca sanctorum pro anime remedio uel stabilitate salutis nostre aliquid de portione terre nostre in subsidiis seruorum dei deuotissimam uoluntatem debeamus offerre . Ideoque tibi Sancte Andrea tueque ecclesiae que est constituta in ciuitate Hrofibreui ubi preesse uidetur Iustus episcopus . trado aliquantulum telluris mei . Hic est terminus mei doni . Fram suðgeate west andlanges wealles oð norðlanan to stræte . 7 swa east fram st\r/æte oð Doddinghyrnan ongean bradgeat . Siquis uero augere uoluerit hanc ipsam donationem; augeat illi dominus dies bonos . Et si presumpserit minuere aut contradicere; in conspectu dei sit damnatus et sanctorum eius hic et in eterna secula . nisi emendauerit ante eius transitum quod inique gessit contra Christianitatem nostram . Hoc cum consilio Laurentii episcopi et omnium principum meorum signo sancte crucis confirmaui . eosque iussi ut mecum idem facerent . Amen .")
     # test.tune_markup_model()

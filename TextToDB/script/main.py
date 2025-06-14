@@ -35,7 +35,7 @@ def setup_database():
 ABOVE_PROJECT_PATH = "../../../" # One folder above project root # TODO: Define global values for this
 TEST_CSV_PATH = ABOVE_PROJECT_PATH + "data/test/Anglo-Saxon_Charters_transformed_v2.csv"
 
-if True:
+if False:
     test_csv = ImportedCSV(
         csv_input = TEST_CSV_PATH,
         separator = ";"
@@ -48,7 +48,7 @@ if True:
     test_lookup = test_csv.charter_lookup(lookup_field = "Charter id", lookup_value = "S 308")
     print(f"Test lookup = {test_lookup}")
 
-if True:
+if False:
     print("Testing genai")
     test_s1 = """
     + In nomine Domini nostri Iesu Christi. Omnem hominem qui secundum Deum uiuit et remunerari a Deo sperat et optat, oportet ut piis precibus consensum hilariter ex animo prebeat, quoniam certum est tanto facilius ea que ipse a Deo poposcerit consequi posse, quanto et ipse libentius Deo aliquid concesserit. Quocirca ego Æthilberhtus rex Cantie, cum consensu uenerabilis archiepiscopi Agustini ac principum meorum, dabo et concedo Deo in honore sancti Petri aliquam partem terre iuris mei quæ iacet in oriente ciuitatis Dorobernie, ita dumtaxat ut monasterium ibi construatur, et res quæ supra memoraui in potestate abbatis sit, qui ibi fuerit ordinatus. Igitur adiuro et precipio in nomine Domini Dei omnipotentis qui est omnium rerum iudex iustus ut prefata terra subscripta donatione sempiternaliter sit confirmata, ita ut nec mihi nec alicui successorum meorum regum aut principum siue cuiuslibet conditionis dignitatibus et ecclesiasticis gradibus de ea aliquid fraudare liceat. Si quis uero de hac donatione nostra aliquid minuere aut irritum facere temptauerit, sit in presenti separatus a sancta communione corporis et sanguinis Christi, et in die iudicii ob meritum malitie suæ a consortio sanctorum omnium segregatus. Circumcincta est hec terra his terminibus: in oriente ecclesia sancti Martini, in meridie uia oþ Burhgat, in occidente et in aquilone Drutingestræte. Acta in ciuitate Dorouerni anno ab incarnatione Christi .dcv., indictione .vi. + Ego Æthelbertus rex Cancie sana mente integroque consilio donacionem meam signo sancte crucis propria manu roboraui confirmauique. Ego Ægustinus gratia Dei archiepiscopus testis consenciens libenter subscripsi. Eadbald. Hamigils. Augemund referendarius. Hocca. Grafio. Thangil. Pinca. Geddi.
