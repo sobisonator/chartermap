@@ -13,20 +13,20 @@ GEMINI_API_KEY = open(GEMINI_API_KEY_PATH).readline()
 
 MARKUP_TYPES_PATH = "../data/markup_types.csv"
 
-# We're going to try using OpenAI's gpt-4.1-nano short context
+# We're going to try using OpenAI's gpt-4.1
+# 4.1 is markedly better than nano in picking out whole phrases which match.
 # It seems to work much better than Google AI's even without fine tuning
 # Using a relatively straightforward system prompt:
 
 SYSTEM_PROMPT = f"""
 User message contains two parameters, delimited by XML tags. The paramaters are as follows:
 Parameter 1, searchtext: <SEARCHTEXT></SEARCHTEXT>
-Parameter 2, class_samples: <EXAMPLES></EXAMPLES>
-Each example within <EXAMPLES> is delimited by <X></X>
-Within each Example Are sub-tags:
-<TE></TE> for the text of the example
-<TY></TY> for the type into which its text can be categorised
-System must find the substring within <SEARCHTEXT> which most closely matches the class of text within <EXAMPLES> <TE> objects. This substring is MatchString
-System must find the type of substring within <EXAMPLES> <TY> objects which corresponds to MatchString. This is TypeString
+Parameter 2, examples: <EXAMPLES></EXAMPLES>
+<EXAMPLES> contains a CSV where rows are delimited by a pipe character `|`
+The first row contains the column headers
+Every example row contains an Object, Type and Class
+System must find the substring within <SEARCHTEXT> which most closely matches the class of text within <EXAMPLES> Object fields. This substring is MatchString
+System must find the <EXAMPLES> Type which corresponds to MatchString. This is TypeString
 Give a level of certainty that MatchString matches any object in the <EXAMPLES>, HIGH, MEDIUM or LOW. This is TextCertaintyLevel
 Give a level of certainty that MatchString corresponds to any subset of <X> objects with a known TypeString. This is TypeCertaintyLevel
 System message must follow the following format:
@@ -63,48 +63,20 @@ class MarkupFlagger():
     
     def generate_training_dataset(self):
         # Transform input CSV into a dict with model and user roles
-        # see https://cloud.google.com/vertex-ai/generative-ai/docs/models/tune_gemini/text_tune
-        # In practice, the LLM should return a classification like this:
-        # <type>typename</type><class>classname</class>
-        # In future we can train this to use the IDs for the type and class
-        # ...but for now we will use names
+        # see https://platform.openai.com/docs/guides/supervised-fine-tuning
         
-        # This function generates a .jsonl file which is uploaded to Google Cloud storage
+        # This function generates a .jsonl file which is uploaded to the OpenAI platform
         # The file is saved in ABOVE_PROJECT_PATH/data/generated_training_datasets
         # Thence it is used to finetune the model
         training_dataset = {
-            "systemInstruction": {
-                "role": "system",
-                "parts": [
-                    {
-                        "text": "All model role text must consist only of strings in the following format "
-                        "<type>typename</type><class>classname</class>"
-                    }
-                ]
-            },
-            "contents": []
-        }
-        for index, row in self.markup_types.iterrows():
-            training_sample = [
+            "messages":
+            [
                 {
-                    "role": "user",
-                    "parts": [
-                        {
-                            "text": row["Object"], # Input sample
-                        }
-                    ],
-                },
-                {
-                    "role": "model",
-                    "parts": [
-                        {
-                            "text": f"<type>{row["Type"]}</type><class>{row["Class"]}</class>"
-                        }
-                    ]
+                    "role":"user",
+                    "content":"<SEARCHTEXT></SEARCHTEXT>"
                 }
             ]
-            for message in training_sample:
-                training_dataset["contents"].append(message)
+        }
         with open(ABOVE_PROJECT_PATH + "data/generated_training_datasets/markup_training.jsonl", "w") as f:
             json.dump(training_dataset, f)
         
@@ -185,19 +157,31 @@ class MarkupFlagger():
         matching_markups = []
         # Send the AI a list of examples objects from the markup_types CSV
         class_example_df = self.markup_types.query(f"Class == '{markup_class}'").get(["Object","Type"])
-        class_example_list = []
 
-        for index, row in class_example_df.iterrows():
-            class_example_list.append(f"<X><TE>{row["Object"]}</TE><TY>{row["Type"]}</TY></X>")
-            class_example_string = "".join(class_example_list)
-        
+        # It takes up fewer tokens to submit example text as a CSV than as XML
+        class_example_string = class_example_df.to_csv(
+            path_or_buf = None, # return as string
+            sep = "|",
+            header = True,
+            index = False,
+            encoding=""
+            )
+        # Remove spaces to reduce token usage
+        # 26.1kt
+        class_example_nospace = class_example_string.replace(" ","")
+
         user_message = f"""
 <SEARCHTEXT>{search_text}</SEARCHTEXT>
-<EXAMPLES>{class_example_string}</EXAMPLES>
+<EXAMPLES>{class_example_nospace}</EXAMPLES>
 """
 
+        # TODO:
+        # Send this to GPT-4.1 API
+        # Get the position of the <MATCH> text in the original, and apply to it the markup
+        # Research TODO: Define a subset of markups to use in the geobureaucracy case study.
+        # We don't need to do them all
         if DEBUG:
-            with open(ABOVE_PROJECT_PATH+"test_message.txt","a") as f:
+            with open(ABOVE_PROJECT_PATH+"test_message.txt","w",-1,"utf-8") as f:
                 f.write(user_message)
                 
 
@@ -205,5 +189,5 @@ class MarkupFlagger():
 # TESTING
 if True:
     test = MarkupFlagger()
-    test.flag_markups(markup_class="Dating clause",search_text="Regnante in perpetuum domino nostro Iesu Christo saluatore . mense Aprilio . sub die iiii . kalendas Maias . indictione vii . ego Æthelberhtus rex filio meo Eadbaldo admonitionem catholice fidei optabilem . Nobis est aptum semper inquirere . qualiter per loca sanctorum pro anime remedio uel stabilitate salutis nostre aliquid de portione terre nostre in subsidiis seruorum dei deuotissimam uoluntatem debeamus offerre . Ideoque tibi Sancte Andrea tueque ecclesiae que est constituta in ciuitate Hrofibreui ubi preesse uidetur Iustus episcopus . trado aliquantulum telluris mei . Hic est terminus mei doni . Fram suðgeate west andlanges wealles oð norðlanan to stræte . 7 swa east fram st\r/æte oð Doddinghyrnan ongean bradgeat . Siquis uero augere uoluerit hanc ipsam donationem; augeat illi dominus dies bonos . Et si presumpserit minuere aut contradicere; in conspectu dei sit damnatus et sanctorum eius hic et in eterna secula . nisi emendauerit ante eius transitum quod inique gessit contra Christianitatem nostram . Hoc cum consilio Laurentii episcopi et omnium principum meorum signo sancte crucis confirmaui . eosque iussi ut mecum idem facerent . Amen .")
+    test.flag_markups(markup_class="Dating clause",search_text="Px Regnante in perpetuum domino Deo vivo et vero . sine fine ullo in æternum cuncta tempora labenti sæculi in velocitate deficiunt adque instar umbræ meridiano tranando decidant et cotidie volendo nolendoque de hoc sæculo labimur . ideo magnopere cogit[and]um est ut cum caducis et temporalibus rebus æterna præmia conparare valeamus in cælis . memor illius exempli de quo dominus dixit :-- 'Sicut aqua extinguit ignem ita elemosinam extinguit peccatum.' 1 Ob quam causam ego Wulfhere rex Mercentium gentis pro amore omnipotentis Dei et illius fidelis ministri beati Petri apostoli . et quia in evangelio dictum est ;-- 'Dilige proximum tuum tanquam temet ipsum' 2 , et reliqua . ideo cum consensu et licentia amic[or]um meorum et optimatum meorum dabo Berhfer∂e propinqus meus aliquam partem agri in hereditatem perpetuam id est . v . manentes . ubi ruricoli nominantur Dilingtun cum campis et silvis et omnibus utensilibus rebus ad isto agro pertinente æternaliter ac perseverabiliter possideat abendi vel dandi cuicunque eligere voluerit. Hoc agrum liberatum est cum . xxx . mancusis cocti auri . et semper liber permaneat omnibus habentibus ab omnibus duris secularibus notis et ignotis præter arcem atque pontem ac vulgare militiam . Si quis vero quod non obtamus . . . . . frangere vel minuere temptaverit . sciat se anathematum ab omnipotenti . . . . . orum nisi hic cum satisfacione digne D[e]o et hominibus emenda[verit] . . . . . . hanc meam donationem signo crucis Christi perscribere jussi . . . . . ege suisque præcipientibus perscripsi + Wita episcopus . + Totta episcopus . + Ofa princeps . + Eadbriht princeps . + Tepra princeps . + Cynred princeps . + Eadbald minister . + Hearnbriht minister . + Eada . + Eoppa . + Ofa . + Acta est autem hæc donatio anno ab incarnatione domini . d.c.xxiiii.")
     # test.tune_markup_model()
