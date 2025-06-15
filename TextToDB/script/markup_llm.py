@@ -16,16 +16,21 @@ MARKUP_TYPES_PATH = "../data/markup_types.csv"
 # We're going to try using OpenAI's gpt-4.1
 # 4.1 is markedly better than nano in picking out whole phrases which match.
 # It seems to work much better than Google AI's even without fine tuning
-# Using a relatively straightforward system prompt:
+# Using a relatively straightforward system prompt (below)
+
+# o3-mini has up to 2.5 million free tokens per day compared to 4.1's 250,000
+# Quality of responses needs some more prompting, it does not pick out the whole sentence UNLESS
+# we include in the prompt " MatchString must include the entire relevant sentence of the matching string's context."
 
 SYSTEM_PROMPT = f"""
 User message contains two parameters, delimited by XML tags. The paramaters are as follows:
 Parameter 1, searchtext: <SEARCHTEXT></SEARCHTEXT>
 Parameter 2, examples: <EXAMPLES></EXAMPLES>
-<EXAMPLES> contains a CSV where rows are delimited by a pipe character `|`
+<EXAMPLES> contains a compressed utf-8 encoded bytes CSV where rows are delimited by a pipe character `|`
+Decompress the CSV
 The first row contains the column headers
 Every example row contains an Object, Type and Class
-System must find the substring within <SEARCHTEXT> which most closely matches the class of text within <EXAMPLES> Object fields. This substring is MatchString
+System must find the substring within <SEARCHTEXT> which most closely matches the class of text within <EXAMPLES> Object fields. This substring is MatchString. MatchString must include the entire relevant sentence of the matching string's context.
 System must find the <EXAMPLES> Type which corresponds to MatchString. This is TypeString
 Give a level of certainty that MatchString matches any object in the <EXAMPLES>, HIGH, MEDIUM or LOW. This is TextCertaintyLevel
 Give a level of certainty that MatchString corresponds to any subset of <X> objects with a known TypeString. This is TypeCertaintyLevel
@@ -189,5 +194,5 @@ class MarkupFlagger():
 # TESTING
 if True:
     test = MarkupFlagger()
-    test.flag_markups(markup_class="Dating clause",search_text="Px Regnante in perpetuum domino Deo vivo et vero . sine fine ullo in æternum cuncta tempora labenti sæculi in velocitate deficiunt adque instar umbræ meridiano tranando decidant et cotidie volendo nolendoque de hoc sæculo labimur . ideo magnopere cogit[and]um est ut cum caducis et temporalibus rebus æterna præmia conparare valeamus in cælis . memor illius exempli de quo dominus dixit :-- 'Sicut aqua extinguit ignem ita elemosinam extinguit peccatum.' 1 Ob quam causam ego Wulfhere rex Mercentium gentis pro amore omnipotentis Dei et illius fidelis ministri beati Petri apostoli . et quia in evangelio dictum est ;-- 'Dilige proximum tuum tanquam temet ipsum' 2 , et reliqua . ideo cum consensu et licentia amic[or]um meorum et optimatum meorum dabo Berhfer∂e propinqus meus aliquam partem agri in hereditatem perpetuam id est . v . manentes . ubi ruricoli nominantur Dilingtun cum campis et silvis et omnibus utensilibus rebus ad isto agro pertinente æternaliter ac perseverabiliter possideat abendi vel dandi cuicunque eligere voluerit. Hoc agrum liberatum est cum . xxx . mancusis cocti auri . et semper liber permaneat omnibus habentibus ab omnibus duris secularibus notis et ignotis præter arcem atque pontem ac vulgare militiam . Si quis vero quod non obtamus . . . . . frangere vel minuere temptaverit . sciat se anathematum ab omnipotenti . . . . . orum nisi hic cum satisfacione digne D[e]o et hominibus emenda[verit] . . . . . . hanc meam donationem signo crucis Christi perscribere jussi . . . . . ege suisque præcipientibus perscripsi + Wita episcopus . + Totta episcopus . + Ofa princeps . + Eadbriht princeps . + Tepra princeps . + Cynred princeps . + Eadbald minister . + Hearnbriht minister . + Eada . + Eoppa . + Ofa . + Acta est autem hæc donatio anno ab incarnatione domini . d.c.xxiiii.")
+    test.flag_markups(markup_class="Dating clause",search_text="∂is wæs gedon ymbe [VIIII] hund wintra and hund eahtatig on ˇy [XX] teoˇan geare ˇæs ˇe Osuuold arcebisceop to folgoˇe fengc. [Sanctae Mariae and sanctus Michahel, cum sancto Petro] and allum Godes halgum gemiltsien ˇis haldendum, gief hwa buton gewrihtum hit abrecan wille, hæbbe him wi∂ God gemæne buton he to dædbote gecyrre, Amen. ∂is syndon ˇa londgemæru ˇæra [V] hida into Wæreslæge. ˇæt is, ærest of ˇære stræt ˇe sceot to heortla byrig on ˇa dic. Andlang dices on ˇone mor. Of ˇam more ondlang geardes on ˇæt hlypgeat. Of ˇæm hlypgeate on Elmsetena gemære. Ondlong gemæres on Ombersetena gemære. Ondlong ˇæs gemæres ˇæt on ˇa portstræt. Ondlong stræte on hakedes stub. Of ˇæm stubbe on Cumbrawylle. Of Cumbrawylle on faganstan. Of faganstane on Æˇelno∂es croft. Of ˇæm crofte ondlong ˇæs gemæres eft on ˇa dic. Her is seo hondseten.")
     # test.tune_markup_model()
