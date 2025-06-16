@@ -1,5 +1,4 @@
-from google import genai
-from google.genai.types import HttpOptions, CreateTuningJobConfig
+from openai import OpenAI
 import time
 import pandas
 import json
@@ -8,8 +7,8 @@ DEBUG = True
 
 ABOVE_PROJECT_PATH = "../../../" # TODO: Use globals for these
 SECRETS_PATH = ABOVE_PROJECT_PATH + "secrets/" 
-GEMINI_API_KEY_PATH = SECRETS_PATH + "gemini_api_key.txt" # TODO: Use environment variable in prod
-GEMINI_API_KEY = open(GEMINI_API_KEY_PATH).readline()
+OPENAI_API_KEY_PATH = SECRETS_PATH + "openai_api_key.txt" # TODO: Use environment variable in prod
+OPENAI_API_KEY = open(OPENAI_API_KEY_PATH).readline()
 
 MARKUP_TYPES_PATH = "../data/markup_types.csv"
 
@@ -21,7 +20,9 @@ MARKUP_TYPES_PATH = "../data/markup_types.csv"
 # o3-mini has up to 2.5 million free tokens per day compared to 4.1's 250,000
 # Quality of responses needs some more prompting, it does not pick out the whole sentence UNLESS
 # we include in the prompt " MatchString must include the entire relevant sentence of the matching string's context."
-
+# TODO: Alter the system prompt to do the following:
+# 1. Return a list of all possible matches
+# 2. Return the start and end characters of each match
 SYSTEM_PROMPT = f"""
 User message contains two parameters, delimited by XML tags. The paramaters are as follows:
 Parameter 1, searchtext: <SEARCHTEXT></SEARCHTEXT>
@@ -30,7 +31,8 @@ Parameter 2, examples: <EXAMPLES></EXAMPLES>
 Decompress the CSV
 The first row contains the column headers
 Every example row contains an Object, Type and Class
-System must find the substring within <SEARCHTEXT> which most closely matches the class of text within <EXAMPLES> Object fields. This substring is MatchString. MatchString must include the entire relevant sentence of the matching string's context.
+System must find the substring within <SEARCHTEXT> which most closely matches the class of text within <EXAMPLES> Object fields. This substring is MatchString.
+MatchString must include the entire context of the relevant string, which may be a phrase or sentence before or after the exact match.
 System must find the <EXAMPLES> Type which corresponds to MatchString. This is TypeString
 Give a level of certainty that MatchString matches any object in the <EXAMPLES>, HIGH, MEDIUM or LOW. This is TextCertaintyLevel
 Give a level of certainty that MatchString corresponds to any subset of <X> objects with a known TypeString. This is TypeCertaintyLevel
@@ -40,50 +42,24 @@ System message must follow the following format:
 <TEXT_CERTAINTY>TextCertaintyLevel</TEXT_CERTAINTY>
 <TYPE_CERTAINTY>TypeCertaintyLevel</TYPE_CERTAINTY>
 """
-# We are going to avoid using <EXAMPLES> though, because this eats up tokens with every message - v inefficient
-# We instead fine-tune GPT-4.1-nano with the full example dataset
+# We may avoid using <EXAMPLES> though, because this eats up tokens with every message - v inefficient
+# An alternative could be to finetune GPT-4.1 with the full example dataset
 # https://platform.openai.com/docs/guides/supervised-fine-tuning
+# Doing this will require creating a list of user prompts with the full text, the class, and the assistant response with just the desired text
+# o3-mini cannot be finetuned using the OpenAI API
+# Ultimately it's a question therefore of what is cheaper, finetuning 4.1 or ad-hoc tuning o3
 
-LLM_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
-LLM_MODEL = "gemma-3-12b-it" # TBD gemini-2.0.flash-lite might be used for finetuning
+LLM_MODEL = "o3-mini"
 
 class MarkupFlagger():
     # Uses Google AI Studio's Gemma 3 12B (free model, text )
     def __init__(self):
-        if "gemma" not in LLM_MODEL:
-            http_options = HttpOptions(api_version="v1")
-        else:
-            http_options = None
-        self.client = genai.Client(
-            api_key = GEMINI_API_KEY,
-            http_options = http_options
+        self.client = OpenAI(
+            api_key = OPENAI_API_KEY
         )
 
         markup_types_file = open(MARKUP_TYPES_PATH)
         self.markup_types = pandas.read_csv(markup_types_file, sep="|")
-
-        self.end_prompt = "\\n<end_of_turn>\\n<start_of_turn>model\\n"
-
-        self.generate_training_dataset()
-    
-    def generate_training_dataset(self):
-        # Transform input CSV into a dict with model and user roles
-        # see https://platform.openai.com/docs/guides/supervised-fine-tuning
-        
-        # This function generates a .jsonl file which is uploaded to the OpenAI platform
-        # The file is saved in ABOVE_PROJECT_PATH/data/generated_training_datasets
-        # Thence it is used to finetune the model
-        training_dataset = {
-            "messages":
-            [
-                {
-                    "role":"user",
-                    "content":"<SEARCHTEXT></SEARCHTEXT>"
-                }
-            ]
-        }
-        with open(ABOVE_PROJECT_PATH + "data/generated_training_datasets/markup_training.jsonl", "w") as f:
-            json.dump(training_dataset, f)
         
 
     def tune_markup_model(self):
@@ -118,40 +94,21 @@ class MarkupFlagger():
             for i, checkpoint in enumerate(tuning_job.tuned_model.checkpoints):
                 print(f"Checkpoints {i+1}: {checkpoint}")
 
-    def generate_system_prompt(self, class_example_string):
-        # We define a structure to create a "system-prompt" equivalent
-        # Following https://ai.google.dev/gemma/docs/core/prompt-structure
-        # Gemma is instruction tuned and so accepts a system prompt
-        system_prompt = f"""
-        <start_of_turn>system
-        Find the closest match in <SEARCHTEXT> for <EXAMPLES>
-        This is called MatchString
-        Give a level of certainty, either HIGH, MEDIUM, or LOW
-        This value is called CertaintyLevel
-        If certainty is LOW, MatchString = `NO MATCH`
-        Model responses must follow the following format:
-        <match_string>MatchString</match_string><certainty>CertaintyLevel</certainty>
-        
-        <EXAMPLES>
-        {class_example_string}
-        </EXAMPLES>
-        <end_of_turn>
-
-        <start_of_turn>user
-        """ # Input proceeds here and is capped by end_prompt
-        # ^ May be obsolete
-        # TODO: Review above in light of using fine tuned model
-
-        return system_prompt
-
-    def get_response(self, model, prompt, class_example_text):
-        system_prompt = self.generate_system_prompt(class_example_text)
-        compiled_prompt = system_prompt + prompt + self.end_prompt
-        response = self.client.models.generate_content(
-            model=model,
-            contents = compiled_prompt
+    def get_response(self, message):
+        response = self.client.responses.create(
+            model = LLM_MODEL,
+            input = [
+                {
+                    "role": "developer",
+                    "content": SYSTEM_PROMPT
+                },
+                {
+                    "role": "user",
+                    "content": message
+                }
+            ]
         )
-        return response.text
+        return response.output_text
     
     def flag_markups(self, markup_class, search_text): # TODO: Add charter_id arg (or just use search_text?)
         # Return a list of markups in a given text which match the markup class
@@ -159,6 +116,7 @@ class MarkupFlagger():
         # TODO: Investigate whether it would be useful to associate list items with a % certainty
         # May not be necessary as there will not be many of each type of markup and there will be 
         # human validation
+        # TODO: Return alter the system prompt to return matches as a list
         matching_markups = []
         # Send the AI a list of examples objects from the markup_types CSV
         class_example_df = self.markup_types.query(f"Class == '{markup_class}'").get(["Object","Type"])
@@ -181,13 +139,14 @@ class MarkupFlagger():
 """
 
         # TODO:
-        # Send this to GPT-4.1 API
+        # Send this to GPT-o3-mini API (DONE)
         # Get the position of the <MATCH> text in the original, and apply to it the markup
         # Research TODO: Define a subset of markups to use in the geobureaucracy case study.
         # We don't need to do them all
-        if DEBUG:
-            with open(ABOVE_PROJECT_PATH+"test_message.txt","w",-1,"utf-8") as f:
-                f.write(user_message)
+        response = self.get_response(
+            message = user_message
+        )
+        print(response)
                 
 
 
