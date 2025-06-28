@@ -12,10 +12,14 @@ OPENAI_API_KEY = open(OPENAI_API_KEY_PATH).readline()
 
 MARKUP_TYPES_PATH = "../data/markup_types.csv"
 
-# We're going to try using OpenAI's gpt-4.1
-# 4.1 is markedly better than nano in picking out whole phrases which match.
-# It seems to work much better than Google AI's even without fine tuning
-# Using a relatively straightforward system prompt (below)
+# OpenAI's o3-mini is the minimum suitable model for this task
+# It performs consistently with the system prompt in the playground
+# 4.1 has a smaller token limit (10% of oe-mini) but if we finetune it, we can come in well under 10%
+# As one-shot prompting can require enormous datasets.
+# There is a hard-to-measure difference in cost between finetuning and one-shot prompting
+# Finetuning has a higher one-off cost
+# One-shot prompting can end up being more costly over time, but it might be suitable for markups with small
+# ...datasets
 
 # o3-mini has up to 2.5 million free tokens per day compared to 4.1's 250,000
 # Quality of responses needs some more prompting, it does not pick out the whole sentence UNLESS
@@ -153,5 +157,5 @@ class MarkupFlagger():
 # TESTING
 if True:
     test = MarkupFlagger()
-    test.flag_markups(markup_class="Dating clause",search_text="∂is wæs gedon ymbe [VIIII] hund wintra and hund eahtatig on ˇy [XX] teoˇan geare ˇæs ˇe Osuuold arcebisceop to folgoˇe fengc. [Sanctae Mariae and sanctus Michahel, cum sancto Petro] and allum Godes halgum gemiltsien ˇis haldendum, gief hwa buton gewrihtum hit abrecan wille, hæbbe him wi∂ God gemæne buton he to dædbote gecyrre, Amen. ∂is syndon ˇa londgemæru ˇæra [V] hida into Wæreslæge. ˇæt is, ærest of ˇære stræt ˇe sceot to heortla byrig on ˇa dic. Andlang dices on ˇone mor. Of ˇam more ondlang geardes on ˇæt hlypgeat. Of ˇæm hlypgeate on Elmsetena gemære. Ondlong gemæres on Ombersetena gemære. Ondlong ˇæs gemæres ˇæt on ˇa portstræt. Ondlong stræte on hakedes stub. Of ˇæm stubbe on Cumbrawylle. Of Cumbrawylle on faganstan. Of faganstane on Æˇelno∂es croft. Of ˇæm crofte ondlong ˇæs gemæres eft on ˇa dic. Her is seo hondseten.")
+    test.flag_markups(markup_class="Dating clause",search_text="Px Regnante inperpetuum ac gubernante domino nostro salvatore sæcula universa. Anno recapitulationis Dionisi . id est ab incarnatione Christi sexcentessimo . octuagessimo indictione sexta revoluta . Nihil ergo intulimus secundum apostolum in hunc mundum verum nec auferre quid possumus . Qua propter ego Oshere rex Catholicam regulam majorum meorum humili qua valeo imitatione subsecutus præditus etiam ad majorem . Confirmationem licentia præstantissimi regis Brittanniæ domini silicet mei nomine indito . Æ∂ilred . pro absolutione scelerum meorum Terram .xxx. manentium in loco qui dicitur Rippell . Confirmantibus episcopis ac principibus et abbatibus Fri∂owaldo monacho Uuinfridi episcopi tradidi quatenus ibidem ecclesiasticæ conversationis normam Christo favente exerceat . Et eam liberam conscribo ab omnibus tributis et vectigalibus Cum utilitatibus ad illam æcclesiam rite pertinentibus silvaticis pascuis . campis . pratis . fluminalibus piscationibus . Et ab omni opere regale a pastu regis et principis et subditorum eorum quid plura ab omni vi tribulationis parvi et magni nisi quattuor causis expeditionem arcem et pontem facere et singulare prætium solvere adversus alium et ad pænam nihil de cæteris omnibus in sua libertate hæc terra secura permaneat in sempiternum in alma Dei nomine præcimus. Si quis vero contra hanc donatione venire tyrannica præsumptione conaverit supernæ indignationis offendiculum horrescens et in tremendo examime ultimæ discussionis districtam animadversionem pertimescat.")
     # test.tune_markup_model()
