@@ -2,6 +2,7 @@ import pandas as pd
 from geopy.geocoders import Nominatim
 from geopy.extra.rate_limiter import RateLimiter
 import time
+import csv
 
 # Uses data from OpenStreetMap via https://osmfoundation.org/
 # OpenStreetMap data is available under the Open Database License
@@ -22,29 +23,30 @@ for col in ["Latitude (programmatic)", "Longitude (programmatic)", "Certainty", 
     if col not in df.columns:
         df[col] = ""
 
-# Geocode missing entries
-for index, row in df.iterrows():
-    if pd.isna(row["Latitude"]) or row["Latitude"] == "":
-        query = f"{row['Location']}, {row['Shire']}, United Kingdom"
-        try:
-            location = geocode(query)
-            if location:
-                df.at[index, "Latitude"] = location.latitude
-                df.at[index, "Longitude"] = location.longitude
-                if row["Shire"].lower() in location.address.lower():
-                    df.at[index, "Certainty"] = "Shire match"
-                else:
-                    df.at[index, "Certainty"] = "No shire match"
-                df.at[index, "Sources"] = "Nominatim"
-            else:
-                df.at[index, "Certainty"] = "Not found"
-                df.at[index, "Sources"] = "Not found"
-        except Exception as e:
-            df.at[index, "Certainty"] = "Low"
-            df.at[index, "Sources"] = f"Error: {str(e)}"
-        time.sleep(1) # Doubly comply with usage policy
-        print(f"Completed {row["Location"]}, location is {location.latitude}, {location.longitude}")
+# Geocode promulgation sites
+promulgation_sites = []
+for location in df["Donated in royal diploma at (location)"].unique():
+    query = f"{location}, United Kingdom"
+    try:
+        geolocated_location = geocode(query)
+        if geolocated_location:
+            promulgation_sites.append({"location": location,
+                                       "latitude": geolocated_location.latitude, 
+                                        "longitude": geolocated_location.longitude})
+            print(f"Completed {location}, location is {geolocated_location.latitude}, {geolocated_location.longitude}")
+    except Exception as e:
+        print(f"No geolocation for {location}")
+    time.sleep(1) # Doubly comply with usage policy
+    
+keys = promulgation_sites[0].keys()
+with open("promulgation_sites.csv", "w", newline="") as f:
+    w = csv.DictWriter(f, keys)
+    w.writeheader()
+    w.writerows(promulgation_sites)
 
-# Save output
-df.to_csv(OUTPUT_FILE, index=False)
-print(f"Saved geocoded data to {OUTPUT_FILE}")
+# Geocode missing entries
+#for index, row in df.iterrows():
+#    for location in promulgation_sites:
+#        if df.at[index, "Donated in royal diploma at (location)"] == location["location"]:
+#            df.at[index, "Prom Lat"] = location["latitude"]
+#            df.at[index, "Prom Lon"] = location["longitude"]
