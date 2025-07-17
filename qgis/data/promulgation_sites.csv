@@ -1,0 +1,46 @@
+location,latitude,longitude,Source
+Abingdon,51.6714842,-1.2779715,Automatically computed
+Amesbury,51.1706875,-1.7706128,Automatically computed
+Axminster,50.7820966,-2.9979915,Automatically computed
+Bickleigh,50.8427425,-3.502667,Automatically computed
+Buckingham,51.9983175,-0.9786725,Automatically computed
+Cheddar,51.2753365,-2.7766545,Automatically computed
+Chippenham,51.4587621,-2.1159032,Automatically computed
+Cirencester,51.7171029,-1.9661616,Automatically computed
+Colchester,51.8896903,0.8994651,Automatically computed
+Cookham,51.5600965,-0.7081509,Automatically computed
+Dorchester,50.7132064,-2.4371229,Automatically computed
+Droitwich,52.26851,-2.1486075,Automatically computed
+Epsom,51.3326098,-0.2678212,Automatically computed
+Exeter,50.7256138,-3.5269209,Automatically computed
+Frome,51.2294852,-2.3198467,Automatically computed
+Gadshill,52.2698549,-1.545795,Automatically computed
+Glastonbury,51.14804,-2.716577,Automatically computed
+Gloucester,51.8653705,-2.2458192,Automatically computed
+Headington,51.7601673,-1.2109282,Automatically computed
+Kingston-on-Thames,51.6743611,-1.2821216,Automatically computed
+London,51.5140003761706,-0.0981885391342617,Google Maps (centred on St Pauls)
+Lyminster,50.8339978,-0.5475421,Automatically computed
+Malmesbury,51.58447,-2.0982042,Automatically computed
+Milton,52.2422961,0.1604726,Automatically computed
+Nottingham,52.9534193,-1.1496461,Automatically computed
+Penkridge,52.7246633,-2.1127563,Automatically computed
+Puddletown,50.7489205,-2.3468411,Automatically computed
+Shrewsbury,52.707755,-2.7540658,Automatically computed
+Somerton,51.06161,-2.7548573,Automatically computed
+Southampton,50.9025349,-1.404189,Automatically computed
+Sutton Courtenay,51.6397508,-1.2777309,Automatically computed
+Westminster,51.5004439,-0.1265398,Automatically computed
+Wilton,51.0805315,-1.8607051,Automatically computed
+Winchcombe,51.9527513,-1.9675136,Automatically computed
+Winchester,51.0612766,-1.3131692,Automatically computed
+"Winchester, Southampton",50.9297324,-1.426927,"This is in error, OSM API found Winchester Road in Southampton."
+Windsor,51.4837886,-0.6040419,Automatically computed
+Woolmer,51.0937792,-0.7481479,Automatically computed
+Worthy,51.1033985,-1.3008489,Automatically computed
+Beorchore,51.6948740025625,-2.45736974415235,"The Anglo-Saxon Town, David Henry Hill, p.264"
+Edington,51.2784183236282,-2.1070989986437,Google Maps
+Lifton,50.6431937101345,-4.28368935052656,Google Maps
+Wantage,51.5899472595696,-1.42424436988753,Google Maps
+Calne,51.4400078007673,-2.00340389408418,Google Maps
+Weardburg,53.3364036722266,-3.33658552507029,"Coates, R., 'Æthelflæd's Fortification of Weardburh', Notes and Queries 243 (1998), 8–12."

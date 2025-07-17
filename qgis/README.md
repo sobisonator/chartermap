@@ -1,18 +1,19 @@
 # Chartermap QGIS project
 
-## Dependencies
 
-### First party
+## First party dependencies
 
-#### Master CSV
-The charter geodata is currently stored as a CSV
+### Master CSVs
+The charter geodata is currently stored as a CSV.
 
-#### Auxiliary geopackages
+### All estates main map
+Estates and promulgation sites are two different tables. Currently they do not have numeric IDs, so the estates use the promulgation site's name as the foreign key. This is probably easier for filtering in GIS software, anyway.
+
+### promulgation_sites
 The auxiliary geopackages are groups of fields based on filters run on the CSV. This seems an inefficient way to break down the data, so we need to investigate a better approach.
 
-### Third party
+## Third party dependencies
 Third party data should be stored in `../gis`
-
 
 
 ## Transformation
