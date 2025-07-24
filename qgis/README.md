@@ -21,3 +21,5 @@ The data in CSV format must have one "configuration" per row. That is:
 CSV is not good for one-to-many relationships, especially when playing with QGIS.
 
 A database or JSON structure could potentially manage these one-to-many relationships more effectively, and then transform them into this "flat" "single sheet" format which has one "configuration" per row.
+
+An example of this is S891 with promulgation sites Wantage and Calne
