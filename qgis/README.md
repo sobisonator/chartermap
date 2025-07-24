@@ -1,20 +1,23 @@
 # Chartermap QGIS project
 
+## Dependencies
+Dependency data should be stored in `../gis`
 
-## First party dependencies
-
-### Master CSVs
-The charter geodata is currently stored as a CSV.
-
-### All estates main map
-Estates and promulgation sites are two different tables. Currently they do not have numeric IDs, so the estates use the promulgation site's name as the foreign key. This is probably easier for filtering in GIS software, anyway.
-
-### promulgation_sites
-The auxiliary geopackages are groups of fields based on filters run on the CSV. This seems an inefficient way to break down the data, so we need to investigate a better approach.
-
-## Third party dependencies
-Third party data should be stored in `../gis`
-
+| Title   |  Availability   |
+| ------- | --------------- |
+| Historic England National Heritage List | https://osdatahub.os.uk/downloads/open/Terrain50 |
 
 ## Transformation
-OS Terrain 50: Inverse of British National Grid + OSGB to WGS 84 (9)
+
+## Filters
+
+## Normalising data
+The data in CSV format must have one "configuration" per row. That is:
+- One promulgation site
+- One date
+- One charter
+- One estate
+
+CSV is not good for one-to-many relationships, especially when playing with QGIS.
+
+A database or JSON structure could potentially manage these one-to-many relationships more effectively, and then transform them into this "flat" "single sheet" format which has one "configuration" per row.
