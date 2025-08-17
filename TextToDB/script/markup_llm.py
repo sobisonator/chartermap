@@ -28,11 +28,10 @@ MARKUP_TYPES_PATH = "../data/markup_types.csv"
 # 1. Return a list of all possible matches
 # 2. Return the start and end characters of each match
 SYSTEM_PROMPT = f"""
-User message contains two parameters, delimited by XML tags. The paramaters are as follows:
+User message contains two parameters, delimited by XML tags. The parameters are as follows:
 Parameter 1, searchtext: <SEARCHTEXT></SEARCHTEXT>
 Parameter 2, examples: <EXAMPLES></EXAMPLES>
-<EXAMPLES> contains a compressed utf-8 encoded bytes CSV where rows are delimited by a pipe character `|`
-Decompress the CSV
+<EXAMPLES> contains a CSV where rows are delimited by a pipe character `|`
 The first row contains the column headers
 Every example row contains an Object, Type and Class
 System must find the substring within <SEARCHTEXT> which most closely matches the class of text within <EXAMPLES> Object fields. This substring is MatchString.
@@ -143,9 +142,6 @@ class MarkupFlagger():
 <SEARCHTEXT>{search_text}</SEARCHTEXT>
 <EXAMPLES>{class_example_nospace}</EXAMPLES>
 """
-
-        # TODO:
-        # Send this to GPT-o3-mini API (DONE)
         # Get the position of the <MATCH> text in the original, and apply to it the markup
         # Research TODO: Define a subset of markups to use in the geobureaucracy case study.
         # We don't need to do them all
