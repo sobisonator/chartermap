@@ -5,5 +5,7 @@ sawyer_number = "S1507"
 
 results = search(f"site:https://pase.ac.uk/pase/?list=person {witness_name} {sawyer_number}",advanced=True)
 
-first_result = next(results)
-print(first_result.url)
+# Testing
+if False:
+    first_result = next(results)
+    print(first_result.url)
