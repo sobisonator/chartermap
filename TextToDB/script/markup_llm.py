@@ -55,20 +55,23 @@ System message must follow the following format:
 SYSTEM_PROMPT_WITNESSES = f"""
 You are an information extraction system.
 
-Input: 
+Input:
 <SEARCHTEXT>...</SEARCHTEXT>
 <EXAMPLES>...</EXAMPLES>
 
 Rules:
-1. Look only inside substrings matching WitnessList in <EXAMPLES>.
-2. Extract every FullSignature within <SEARCHTEXT>.
+1. Only extract witnesses from the witness list section of <SEARCHTEXT>.
+   - The witness list always follows a formula such as "hiis testibus", "testibus consentientibus", "quorum nomina infra", or similar.
+   - Stop the witness list when land boundaries, property descriptions, or closing narrative resumes.
+   - Ignore dispositive clauses (gifts, grants, confirmations) and ignore land boundary clauses (words like "Ærest", "terminibus", "gemære").
+2. Within that section, extract every FullSignature.
 3. For each:
-   - MatchString = exact text of the FullSignature.
-   - NameOnly = the personal name within the signature. This may be a new name not present in <EXAMPLES>.
+   - MatchString = exact text of the signature.
+   - NameOnly = the personal name inside (may be new).
    - TypeString = one of the Types listed in <EXAMPLES>. Always choose the closest match. Use "unknown" only if no match is possible.
-   - OrderValue = sequential order starting at 1.
-   - RiskyMatch = FALSE if within WitnessList, TRUE otherwise.
-4. Output format (no other text):
+   - OrderValue = order of appearance starting at 1.
+   - RiskyMatch = FALSE if within the witness list, TRUE otherwise.
+4. Output format (only this):
 <MATCH>MatchString;NameOnly;TypeString;OrderValue;RiskyMatch</MATCH>
 """
 
