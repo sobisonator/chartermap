@@ -1,14 +1,17 @@
 from openai import OpenAI
 import time
 import pandas
+from import_csv import *
 import json
 
 DEBUG = True
 
 ABOVE_PROJECT_PATH = "../../../" # TODO: Use globals for these
 SECRETS_PATH = ABOVE_PROJECT_PATH + "secrets/" 
+ALL_CHARTERS_PATH = ABOVE_PROJECT_PATH + "data/test/Anglo-Saxon_Charters_transformed_v2.csv"
 OPENAI_API_KEY_PATH = SECRETS_PATH + "openai_api_key.txt" # TODO: Use environment variable in prod
 OPENAI_API_KEY = open(OPENAI_API_KEY_PATH).readline()
+WITNESS_SAMPLES_PATH = "../data/witness_samples.csv"
 
 MARKUP_TYPES_PATH = "../data/markup_types.csv"
 
@@ -52,6 +55,7 @@ System message must follow the following format:
 # o3-mini cannot be finetuned using the OpenAI API
 # Ultimately it's a question therefore of what is cheaper, finetuning 4.1 or ad-hoc tuning o3
 
+# TODO: Change this to return a CSV with the S number at the end of each ro
 SYSTEM_PROMPT_WITNESSES = f"""
 You are an information extraction system.
 
@@ -72,140 +76,13 @@ Rules:
    - OrderValue = order of appearance starting at 1.
    - RiskyMatch = FALSE if within the witness list, TRUE otherwise.
 4. Output format (only this):
-<MATCH>MatchString;NameOnly;TypeString;OrderValue;RiskyMatch</MATCH>
+<MATCH><FULLSIGNATURE>MatchString</FULLSIGNATRUE><NAME>NameOnly</NAME><TYPE>TypeString</TYPE><ORDER>OrderValue</ORDER><RISKY<RiskyMatch</RISKY></MATCH>
 """
 
 LLM_MODEL = "o3-mini"
 
 # TODO: Move WITNESS_SAMPLES out of here into a separate CSV file
-WITNESS_SAMPLES = f"""
-<EXAMPLES>
-Text,Class,Type
-+ Ego Æ∂elstan rex Anglorum hanc meam donationem cum sigillo sanctæ crucis impressi . + Ego Eadmund indolis clito . consensi . + Ego Wulfhelm archiepiscopus dictavi . + Ego Ælfheah episcopus adquievi . + Ego Æ∂elgar episcopus notavi . + Ego Brihtelm episcopus favi . + Ego Wynsige episcopus conclusi . + Wulfgar dux . + Ælfhere dux . + Æ∂elstan dux . + Odda minister . + Wulfhelm minister . + Ælfheah minister . + Æ∂elfer∂ minister . + Wihtgar minister . ,WitnessList,
-+ Ego Æ∂elstan rex Anglorum hanc meam donationem cum sigillo sanctæ crucis impressi .,FullSignature,Sovereign
-+ Ego Eadmund indolis clito . consensi,FullSignature,Aetheling
-Æ∂elstan,Name,
-Eadmund,Name,
-+ Ego Wulfhelm archiepiscopus dictavi .,FullSignature,Archbishop
-Wulfhelm,Name,
-+ Ego Ælfheah episcopus adquievi .,FullSignature,Bishop
-Ælfheah,Name,
-+ Ego Æ∂elgar episcopus notavi .,FullSignature,Bishop
-Æ∂elgar,Name,
-+ Ego Brihtelm episcopus favi .,FullSignature,Bishop
-Brihtelm,Name,
-+ Ego Wynsige episcopus conclusi .,FullSignature,Bishop
-Wynsige,Name,
-+ Wulfgar dux .,FullSignature,Dux
-Wulfgar,Name,
-+ Ælfhere dux .,FullSignature,Dux
-+ Æ∂elstan dux .,FullSignature,Dux
-Ælfhere,Name,
-+ Odda minister .,FullSignature,Minister
-Odda,Name,
-+ Wulfhelm minister .,FullSignature,Minister
-+ Ælfheah minister .,FullSignature,Minister
-+ Æ∂elfer∂ minister .,FullSignature,Minister
-Æ∂elfer∂,Name,
-+ Wihtgar minister .,FullSignature,Minister
-Wihtgar,Name,
-Ælfheah ,Name,
-Wulfhelm,Name,
-+ Ego Edelred singularis priuilegii ierarchia preditus rex . huius indiculi acumen cum signo sancte crucis sempiterneque uenerande corroboraui et subscripsi + Ego Wulfstan archiepiscopus regie roboram donationis agie triumphale crucis signaculum depinxi + Ego Elfhun Lundonie ciuitatis presul hanc cartulam aliasque duas scilicet at Totanham et at Hatfeld dictitans rege suiusque precipientibus perscribere iussi + Ego Adulf episcopus consensi + Ego Ethelsige episcopus confirmaui + Ego Godwine episcopus adiuui + Ego Elfgar episcopus adquieui + Ego Britwold episcopus + Ego Eadnod episcopus non renui + Ego Elfmer episcopus corroboraui + Ego Eadric dux consensi + Ego Elfric dux consensi + Ego Leofwine dux consensi + Ego Utred dux consensi + Ego Germanus abbas + Ego Leofric abbas + Ego Wulfgar abbas + Ego Elfsige abbas + Ego Britred abbas + Ego Elfric abbas + Ego Elfuere abbas + Ego Brithold abbas + Ego Elfwig abbas + Ego Eadric abbas + Ego Bristan abbas + Ego Ethelmer minister + Ego Elfgar minister + Ego Odda minister + Ego Ethelric minister + Ego Elfgar minister + Ego Godric minister + Ego Ethelwine minister + Ego Ulfcitel minister + Ego S[...]elyred minister + Ego Brisige minister + Ego Wulfric minister,WitnessList,
-+ Ego Edelred singularis priuilegii ierarchia preditus rex . huius indiculi acumen cum signo sancte crucis sempiterneque uenerande corroboraui et subscripsi,FullSignature,Sovereign
-+ Ego Wulfstan archiepiscopus regie roboram donationis agie triumphale crucis signaculum depinxi +,FullSignature,Archbishop
-Edelred,Name,
-Wulfstan,Name,
-+ Ego Elfhun Lundonie ciuitatis presul hanc cartulam aliasque duas scilicet at Totanham et at Hatfeld dictitans rege suiusque precipientibus perscribere iussi +,FullSignature,Archbishop
-Elfhun,Name,
-Ego Cuthred comes consensi.,FullSignature,Comes
-Cuthred,Name,
-Ego Seaftuwine consensi.,FullSignature,Comes
-Seaftuwine,Name,
-Ego Alricus comes consensi. Ego Eadberhtus comes consensi. Ego Sceafthere comes consensi. Ego Westheah comes consensi. Ego Seaftuwine consensi. Ego Cuthred comes consensi. [.............],WitnessList,
-Ego Ceolnodus gracia Dei archiepiscopus ad confirmandam huius testimonium carticulam signum sancte crucis exaravi . + Ego Athelwolf rex ad roborandam haunc meam donacionem almi trophei signaculum impressi . + Cum multis aliis .,WitnessList,
-Ego Ceolnodus gracia Dei archiepiscopus ad confirmandam huius testimonium carticulam signum sancte crucis exaravi .,FullSignature,Archbishop
-Ceolnodus,Name,
-+ Ego Athelwolf rex ad roborandam haunc meam donacionem almi trophei signaculum impressi .,FullSignature,Sovereign
-Athelwolf,Name,
-+ Ego Æþelfled hanc meam licentiam confirmo signaculo sancte crucis. + Ego Ælfwyn episcopus consensi et subscripsi. + Ego Ælfwine episcopus consensi et subscripsi. + Ego Æþelhun episcopus consensi et subscripsi. + Ego Eadgar consensi et subscripsi. + Ego Ælfred episcopus consensi et subscripsi. + Ego Æþelferd dux consensi et subscripsi. + Ego Ælfred dux consensi et subscripsi. + Ego Æþelhun abbas consensi et subscripsi. + Ego Ecgberht abbas consensi et subscripsi. + Ego Cynað abbas consensi et subscripsi. + Ego Wihtred consensi et subscripsi. + Ego Berhsige consensi et subscripsi. + Ego Æþelnaþ consensi et subscripsi. + Ego Æþelward consensi et subscripsi. + Ego Ælfstan consensi et subscripsi.,WitnessList,
-+ Ego Æþelfled hanc meam licentiam confirmo signaculo sancte crucis.,FullSignature,Sovereign
-Æþelfled,Name,
-+ Ego Ælfwyn episcopus consensi et subscripsi.,FullSignature,Bishop
-+ Ego Eadgar consensi et subscripsi.,FullSignature,NoTitle
-Eadgar,Name,
-+ Ego Æþelhun abbas consensi et subscripsi.,FullSignature,Abbot
-Æþelhun,Name,
-+ Ego Ecgberht abbas consensi et subscripsi.,FullSignature,Abbot
-+ Ego Cynað abbas consensi et subscripsi.,FullSignature,Abbot
-+ Ego Wihtred consensi et subscripsi.,FullSignature,NoTitle
-+ Ego Berhsige consensi et subscripsi.,FullSignature,NoTitle
-+ Ego Æþelnaþ consensi et subscripsi.,FullSignature,NoTitle
-+ Ego Æþelward consensi et subscripsi.,FullSignature,NoTitle
-+ Ego Ælfstan consensi et subscripsi.,FullSignature,NoTitle
-Ego Ælfred gratia Dei Saxonum rex propriæ donationi signum crucis confirmavi . Ego Æˇered archiepiscopus manum adpono . Ego Denewulf episcopus huic donationi consentiens subscribo . Ego Æˇelnod Dux . Ego Wlfred Dux . Ego Orddulf Dux . Ego Bucca Dux . Ego Æ∂elwald Dux . Ego Wullaf Dux . Ego Garulf Dux . Ego Byrhtnod Dux . Ego Osric minister . Ego Eggwulf minister . Ego Æ∂elm minister . Ego Witbrord minister . Ego Deormod minister . Ego Acca minister . Ego Ælfhere minister . Ego Wullaf minister . Ego Babba minister . Ego Ealdwulf minister . Ego Æˇelstan minister Ego Tata minister . Ego Burlaf minister . Ego Æffa minister .,WitnessList,
-Ego Ælfred gratia Dei Saxonum rex propriæ donationi signum crucis confirmavi .,FullSignature,Sovereign
-Ego Æˇered archiepiscopus manum adpono .,FullSignature,Archbishop
-Ego Denewulf episcopus huic donationi consentiens subscribo .,FullSignature,Archbishop
-Ego Wlfred Dux .,FullSignature,Dux
-Ego Orddulf Dux,FullSignature,Dux
-Ego Bucca Dux .,FullSignature,Dux
-Ego Æ∂elwald Dux .,FullSignature,Dux
-Ego Osric minister .,FullSignature,Minister
-Ego Eggwulf minister .,FullSignature,Minister
-Eggwulf,Name,
-Aelfred rex saxonum. Wulfsige episcopus. Wulred dux. Aeˇelred dux. Eadweard filius regis. Johannes presbyter. Wærulf presbyter. Deormod cellerarius. Aelfric thesaurarius. Sigewulf pincerna. Byrnstan miles. Berchtmund miles. Wulfsige miles. Aeˇelm miles. Ae∂elhelm miles. Owald miles. Vchfer∂ miles. Ocea miles. Byrhthelm miles.,WitnessList,
-Aelfred rex saxonum.,FullSignature,Sovereign
-Eadweard filius regis.,FullSignature,Aetheling
-Johannes presbyter.,FullSignature,Priest
-Wærulf presbyter.,FullSignature,Priest
-Deormod cellerarius.,FullSignature,Staller
-Aelfric thesaurarius.,FullSignature,Staller
-Sigewulf pincerna.,FullSignature,Staller
-Byrnstan miles.,FullSignature,Miles
-Berchtmund miles.,FullSignature,Miles
-Wulfsige miles.,FullSignature,Miles
-Ae∂elhelm miles.,FullSignature,Miles
-Owald miles.,FullSignature,Miles
-Vchfer∂ miles.,FullSignature,Miles
-Et ego Plegmundus archiepiscopus Dorobernensis consencio æt subscribo . +. Et ego Ethelbaldus archiepiscopus Eboracensis consencio æt subscribo . +. Ego Ethelstanus Herfordensis antistes . consencio et subscribo . +. Ego Werbertus Lagaces[trensis episcopus] consencio æt subscribo . +. Ego Tynebertus Lichefeldensis episcopus consencio æt subscribo . +. Ego Herefredus Wygorniensis Minister consencio æt signum sancte crucis appono . +. Ego Elfstanus Londoniensis episcopus signum crucis appono . +. Ego Denewuolfus Wentanæ urbis episcopus assencio æt conscribo . +. Ego Eylmerus Cicestrensis minister assensum prebeo æt suscribo . +. Ego Eaddredus Norwuycensis minister consencio æt signum crucis appono . +. Ego Haroldus Dorkcestrensis minister consencio æt subscribo . +. Ego Grymbaldus sacerdos ad honorem Dei consencio . æt signum crucis appono . +. Ego Johannes abbas signum crucis appono . +. Ego Eaddredus comes consencio æt subscribo . +. Ego Etheldredus Ganniorum dux subscribo . +. Ego Ælwytha regina . consencio æt subscribo . +. Ego Etheldredus dux Merciorum consencio æt subscribo . +.,WitnessList,
-Et ego Plegmundus archiepiscopus Dorobernensis consencio æt subscribo . +,FullSignature,Archbishop
- +. Ego Ethelstanus Herfordensis antistes . consencio et subscribo .,FullSignature,Priest
-+. Ego Werbertus Lagaces[trensis episcopus] consencio æt subscribo .,FullSignature,Bishop
-+. Ego Tynebertus Lichefeldensis episcopus consencio æt subscribo .,FullSignature,Bishop
-+. Ego Grymbaldus sacerdos ad honorem Dei consencio . æt signum crucis appono .,FullSignature,Priest
-+. Ego Johannes abbas signum crucis appono .,FullSignature,Abbot
-+. Ego Eaddredus comes consencio æt subscribo .,FullSignature,Comes
-+. Ego Etheldredus Ganniorum dux subscribo .,FullSignature,Dux
-+. Ego Ælwytha regina . consencio æt subscribo .,FullSignature,Queen
-+. Ego Etheldredus dux Merciorum consencio æt subscribo .,FullSignature,Dux
-Ego Denewulf episcopus .,FullSignature,Bishop
-Denewulf,Name,
-Ego A∂elweard filius regis . ,FullSignature,Aetheling
-A∂elweard,Name,
-Ego Asser episcopus .,FullSignature,Bishop
-Ego Ælfweard filius regis .,FullSignature,Aetheling
-Ego Æˇelweard episcopus consensi et subscripsi .,FullSignature,Bishop
-Ego Ceolmund episcopus consensi et subscripsi .,FullSignature,Bishop
-Ego Wighelm episcopus consensi et subscripsi .,FullSignature,Bishop
-Ego Wulfsige episcopus consensi et subscripsi .,FullSignature,Bishop
-Ego Fri∂estan . episcopus cum consilio eiusdem regis hoc roboraui atque conexi cum triumpho regis eterni .,FullSignature,Bishop
-Ego Plegmund archiepiscopus mellifluam donationem prefati regis subscribsi cum signaculo sancte crucis .,FullSignature,Archbishop
-Ego Eadwardus . Rex hanc restaurationem a me renouatam signum sancte crucis propria manu scribendo firmaui .,FullSignature,Sovereign
-Ego Eadwardus . Rex hanc restaurationem a me renouatam signum sancte crucis propria manu scribendo firmaui . Ego Plegmund archiepiscopus mellifluam donationem prefati regis subscribsi cum signaculo sancte crucis . Ego Fri∂estan . episcopus cum consilio eiusdem regis hoc roboraui atque conexi cum triumpho regis eterni . Ego Wulfsige episcopus consensi et subscripsi . Ego Wighelm episcopus consensi et subscripsi . Ego Ceolmund episcopus consensi et subscripsi . Ego Æˇelweard episcopus consensi et subscripsi . Ego Æˇelstan filius regis . Ego Ælfweard filius regis . Ego Osfer∂ dux . Ego Ordlaf dux . Ego Beorhtulf dux . Ego Ordgar dux . Ego Heahferd dux . Ego Werulf presbyter . Ego Æˇelstan presbyter . Ego Beornstan presbyter . Ego Ealhstan presbyter . Ego Deormod minister . Ego Withbrord minister . Ego Odda minister . Ego Ælwold minister . Ego Elred minister . Ego A∂ulf minister . Ego Æˇelfer∂ minister . Ego Wulfhear∂ minister . Ego Ælfric minister . Ego Wulfhelm minister . Ego Uffa minister . Ego Ælfstan minister . Ego Ælfred minister . Ego Ælfstan minister . Ego Wulfhere minister . Ego A∂ulf minister . Ego Wulfhun minister . Ego Wullaf minister . Ego Buga minister . Ego Ælfre∂ minister . Ego Æˇelno∂ minister . Ego Wulfric minister .,WitnessList,
-"Adlem archiepiscopus. Alla episcopus. Siglem episcopus. Wlflem episcopus. Wlbred episcopus. Berneth episcopus. Eatolw episcopus. Winsige episcopus. Ordgar princeps. Aelwald princeps, et Odda minister regis, et Cened abbas, et Alfeth sacerdos, et alius Alfeth sacerdos et monachus.",WitnessList,
-Adlem archiepiscopus.,FullSignature,Archbishop
-Alla episcopus.,FullSignature,Bishop
-Siglem episcopus.,FullSignature,Bishop
-Ordgar princeps.,FullSignature,Princeps
-"Aelwald princeps,",FullSignature,Princeps
-Odda minister regis,FullSignature,Minister
-Cened abbas,FullSignature,Abbot
-Alfeth sacerdos,FullSignature,Priest
-+ Feologeld presbyter abbas,FullSignature,Priest
-+ Æðelnoð,FullSignature,NoTitle
-</EXAMPLES>
-"""
+WITNESS_SAMPLES = open(WITNESS_SAMPLES_PATH, "r")
 
 class MarkupFlagger():
     def __init__(self):
@@ -305,7 +182,7 @@ class MarkupFlagger():
         return(response)
     
     def classify_witnesses(self, search_text): # TODO: Get search_text from charter_id
-        witness_example_data = WITNESS_SAMPLES
+        witness_example_data = WITNESS_SAMPLES.read()
 
         user_message = f"""
 <EXAMPLES>{witness_example_data}</EXAMPLES>
@@ -324,6 +201,17 @@ class MarkupFlagger():
 
 # TESTING
 if True:
-    test = MarkupFlagger()
-    test.classify_witnesses(search_text="""+ In nomine Domine Ego Ælfrædus gratia Dei Saxonum rex . meo fideli duce Sigilmo concedo in perpetuam posessionem terram iuris mei uniusque manentis in loco qui dicitur Fearnleag et an myclan wisce vi æceres mæde into ðam lande an norðeweardre wið Eadweald Sibirhtigne pro eius amabilii pecunia ut abeat et possedeat quamdiu uiuat . postque suum ab ac uita decessum liberam abeat potestatem dandi cuicumque placuerit Acta est autem hæc donatio anno ab incarnatione Christi .dcccxcviii. in loco qui dicitur Wulfamere . hiis testibus consentientibus quorum nomina infra karaxata esse fidentur. + Ego Ælfred rex Saxonum hanc meum donationem signo sancte crucis confirmo + Eadweard rex . hanc regis donationem stabilito. + Ordlaf dux. + Sigulf dux. + Wullaf dux. + Beorhtsige minister + Osferð minister + Wulfhere minister + Eadweald minister + Æðelstan sacerdos + Cuðulf minister + Ecgferð minister + Eadhelm minister Ista autem præfata terra hiis terminibus circumcincta esse uidetur. + Ærest easteweard ðæt ealde bocland to Fearnleage lið ðonne is ðæt suð land gemære ðæs cinges west andlang ðæs fyrhðes oð ðone bradan weg ðe uppan scet to fealcnes forda ðonne helt Medewæge ðæt norð land gemære:-""")
-    # test.tune_markup_model()
+    flagger = MarkupFlagger()
+    charters = ImportedCSV(ALL_CHARTERS_PATH, ";")
+    i = 1
+    for charter in charters.list_all():
+        if charter["Year of issue (numerical)"].isnumeric():
+            if int(charter["Year of issue (numerical)"]) > 870 and i < 2:
+                sawyer_number=charter["Charter id"]
+                print("Looking up " + sawyer_number)
+                # Get two fields from charter DF: SNumber and Text
+                witnesses = flagger.classify_witnesses(search_text=charter["Original text"])
+                # TODO: Associate the Sawyer Number with each set of matches per charter
+                # TODO: Lookup and save the witness ID from PASE
+                i += 1
+        # test.tune_markup_model()

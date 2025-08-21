@@ -42,7 +42,12 @@ class ImportedCSV():
                 row_index += 1
                 row_real_index += 1
             print(f"CSV loaded successfully with {row_real_index+1} entries.")           
-            
+
+    def list_all(self):
+        # Return all the charters as a list of dicts
+        # Where each row is a dict and each column header is a dict key
+        return(self.all_data.values())
+
     def charter_get_data_by_uid(self, charter_uid, field):
         return self.all_data[charter_uid][field]
 
