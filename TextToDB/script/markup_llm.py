@@ -2,7 +2,7 @@ from openai import OpenAI
 import time
 import pandas
 from import_csv import *
-import json
+import xml.etree.ElementTree as ET
 
 DEBUG = True
 
@@ -12,7 +12,7 @@ ALL_CHARTERS_PATH = ABOVE_PROJECT_PATH + "data/test/Anglo-Saxon_Charters_transfo
 OPENAI_API_KEY_PATH = SECRETS_PATH + "openai_api_key.txt" # TODO: Use environment variable in prod
 OPENAI_API_KEY = open(OPENAI_API_KEY_PATH).readline()
 WITNESS_SAMPLES_PATH = "../data/witness_samples.csv"
-
+WITNESS_PROCESSED_XML_PATH = "../data/classified_witnesses.xml"
 MARKUP_TYPES_PATH = "../data/markup_types.csv"
 
 # OpenAI's o3-mini is the minimum suitable model for this task
@@ -76,7 +76,7 @@ Rules:
    - OrderValue = order of appearance starting at 1.
    - RiskyMatch = FALSE if within the witness list, TRUE otherwise.
 4. Output format (only this):
-<MATCH><FULLSIGNATURE>MatchString</FULLSIGNATRUE><NAME>NameOnly</NAME><TYPE>TypeString</TYPE><ORDER>OrderValue</ORDER><RISKY<RiskyMatch</RISKY></MATCH>
+<MATCH><FULLSIGNATURE>MatchString</FULLSIGNATRUE><NAME>NameOnly</NAME><TYPE>TypeString</TYPE><ORDER>OrderValue</ORDER><RISKY>RiskyMatch</RISKY></MATCH>
 """
 
 LLM_MODEL = "o3-mini"
@@ -193,14 +193,11 @@ class MarkupFlagger():
             message = user_message,
             system_prompt = SYSTEM_PROMPT_WITNESSES
         )
-        print(response)
         return(response)
-
-                
 
 
 # TESTING
-if True:
+if False:
     flagger = MarkupFlagger()
     charters = ImportedCSV(ALL_CHARTERS_PATH, ";")
     i = 1
@@ -210,8 +207,13 @@ if True:
                 sawyer_number=charter["Charter id"]
                 print("Looking up " + sawyer_number)
                 # Get two fields from charter DF: SNumber and Text
-                witnesses = flagger.classify_witnesses(search_text=charter["Original text"])
-                # TODO: Associate the Sawyer Number with each set of matches per charter
-                # TODO: Lookup and save the witness ID from PASE
+                witnesses_raw_xml = f'<charter sawyer_id="{sawyer_number}">\n {flagger.classify_witnesses(search_text=charter["Original text"])} </charter>'
+                print(witnesses_raw_xml)
+                with open(WITNESS_PROCESSED_XML_PATH, "a", encoding="utf-8") as f:
+                    f.write(witnesses_raw_xml)
                 i += 1
-        # test.tune_markup_model()
+    
+if True:
+    witnesse_tree = ET.parse(WITNESS_PROCESSED_XML_PATH)
+    witness_root = witnesse_tree.getroot()
+    # TODO: Lookup and save the witness ID from PASE
