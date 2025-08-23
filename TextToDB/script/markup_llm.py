@@ -93,39 +93,6 @@ class MarkupFlagger():
         markup_types_file = open(MARKUP_TYPES_PATH)
         self.markup_types = pandas.read_csv(markup_types_file, sep="|")
         
-
-    def tune_markup_model(self):
-        # This function may be redundant if the model is tuned via the Google GenAI dashboard
-        # https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini-use-supervised-tuning#google-gen-ai-sdk
-        tuning_job = self.client.tunings.tune(
-            base_model = "gemini-2.0-flash-lite-001",
-            training_dataset = self.training_dataset_json,
-            config = CreateTuningJobConfig(
-                tuned_model_display_name = "Charter markup identifier test"
-            )
-        )
-        running_states = set([
-            "JOB_STATE_PENDING",
-            "JOB_STATE_RUNNING"
-        ])
-        while tuning_job.state in running_states:
-            print(tuning_job.state)
-            tuning_job = self.client.tunings.get(name=tuning_job.name)
-            time.sleep(60)
-        print(tuning_job.tuned_model.model)
-        print(tuning_job.tuned_model.endpoint)
-        print(tuning_job.experiment)
-        # Test tuned model
-        response = self.get_response(
-            model = tuning_job.tuned_model.endpoint,
-            prompt = "anno secundo regni nostri, indictione secunda, sub die kalendarum Martis"
-        )
-        print(response)
-
-        if tuning_job.tuned_model.checkpoints:
-            for i, checkpoint in enumerate(tuning_job.tuned_model.checkpoints):
-                print(f"Checkpoints {i+1}: {checkpoint}")
-
     def get_response(self, message, system_prompt):
         response = self.client.responses.create(
             model = LLM_MODEL,
@@ -197,23 +164,23 @@ class MarkupFlagger():
 
 
 # TESTING
-if False:
+if True:
     flagger = MarkupFlagger()
     charters = ImportedCSV(ALL_CHARTERS_PATH, ";")
     i = 1
+    # TODO: Program this into the MarkupFlagger class
+    # Create a method to run it for an arbitrary number of charters
+    # Within date parameters
+    # And save an XML file with <data> as the root tag, with <charter id="{S Number}"> as the top children per output
     for charter in charters.list_all():
         if charter["Year of issue (numerical)"].isnumeric():
             if int(charter["Year of issue (numerical)"]) > 870 and i < 2:
                 sawyer_number=charter["Charter id"]
                 print("Looking up " + sawyer_number)
                 # Get two fields from charter DF: SNumber and Text
+                # TODO: Make the XML CRMTex compliant
                 witnesses_raw_xml = f'<charter sawyer_id="{sawyer_number}">\n {flagger.classify_witnesses(search_text=charter["Original text"])} </charter>'
                 print(witnesses_raw_xml)
                 with open(WITNESS_PROCESSED_XML_PATH, "a", encoding="utf-8") as f:
                     f.write(witnesses_raw_xml)
                 i += 1
-    
-if True:
-    witnesse_tree = ET.parse(WITNESS_PROCESSED_XML_PATH)
-    witness_root = witnesse_tree.getroot()
-    # TODO: Lookup and save the witness ID from PASE

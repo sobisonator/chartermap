@@ -1,4 +1,5 @@
 from googlesearch import search
+import xml.etree.ElementTree as ET
 
 witness_name = "Ealdred"
 sawyer_number = "S1507"
