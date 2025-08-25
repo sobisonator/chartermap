@@ -174,6 +174,8 @@ if True:
     # And save an XML file with <data> as the root tag, with <charter id="{S Number}"> as the top children per output
     for charter in charters.list_all():
         if charter["Year of issue (numerical)"].isnumeric():
+            # TODO: Configure this to filter for only the charters in our dataset, rather than just by year
+            # Doing it by year is just a rough approximation of our dataset
             if int(charter["Year of issue (numerical)"]) > 870 and i < 2:
                 sawyer_number=charter["Charter id"]
                 print("Looking up " + sawyer_number)
