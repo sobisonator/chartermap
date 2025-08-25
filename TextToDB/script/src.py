@@ -19,4 +19,5 @@ DATABASE_CFG_PATH = pathlib.Path(SCRIPT_PATH.parent / "db/db_connection.cfg")
 
 DB_PATH = pathlib.Path(SCRIPT_PATH.parent / "db/charterDB.sql")
 
-WITNESS_PROCESSED_XML_PATH = f"{SCRIPT_PATH}/../data/classified_witnesses.xml" # TODO: Bodge. Fix
+WITNESS_PROCESSED_XML_PATH = f"{SCRIPT_PATH.parent}/data/classified_witnesses.xml" # TODO: Bodge. Fix
+WITNESS_PROCESSED_CSV_PATH = f"{SCRIPT_PATH.parent}/data/classified_witnesses.csv"
