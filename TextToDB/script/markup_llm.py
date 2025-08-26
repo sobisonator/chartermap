@@ -1,8 +1,6 @@
 from openai import OpenAI
-import time
 import pandas
 from import_csv import *
-import xml.etree.ElementTree as ET
 
 DEBUG = True
 
@@ -148,7 +146,7 @@ class MarkupFlagger():
         print(response)
         return(response)
     
-    def classify_witnesses(self, search_text): # TODO: Get search_text from charter_id
+    def classify_witnesses(self, search_text):
         witness_example_data = WITNESS_SAMPLES.read()
 
         user_message = f"""
@@ -162,27 +160,16 @@ class MarkupFlagger():
         )
         return(response)
 
-
-# TESTING
-if True:
-    flagger = MarkupFlagger()
-    charters = ImportedCSV(ALL_CHARTERS_PATH, ";")
-    i = 1
-    # TODO: Program this into the MarkupFlagger class
-    # Create a method to run it for an arbitrary number of charters
-    # Within date parameters
-    # And save an XML file with <data> as the root tag, with <charter id="{S Number}"> as the top children per output
-    for charter in charters.list_all():
-        if charter["Year of issue (numerical)"].isnumeric():
-            # TODO: Configure this to filter for only the charters in our dataset, rather than just by year
-            # Doing it by year is just a rough approximation of our dataset
-            if int(charter["Year of issue (numerical)"]) > 870 and i < 2:
-                sawyer_number=charter["Charter id"]
-                print("Looking up " + sawyer_number)
-                # Get two fields from charter DF: SNumber and Text
-                # TODO: Make the XML CRMTex compliant
-                witnesses_raw_xml = f'<charter sawyer_id="{sawyer_number}">\n {flagger.classify_witnesses(search_text=charter["Original text"])} </charter>'
-                print(witnesses_raw_xml)
-                with open(WITNESS_PROCESSED_XML_PATH, "a", encoding="utf-8") as f:
+    def create_witness_xml(self, charters, valid_ids):
+        with open(WITNESS_PROCESSED_XML_PATH, "w", encoding="utf-8") as f:
+            f.write("<data>")
+            for charter in charters.list_all():
+                if charter["Charter id"] in valid_ids:
+                    sawyer_number=charter["Charter id"]
+                    print("Looking up " + sawyer_number)
+                    # Get two fields from charter DF: SNumber and Text
+                    # TODO: Make the XML CRMTex compliant
+                    witnesses_raw_xml = f'<charter sawyer_id="{sawyer_number}">\n {self.classify_witnesses(search_text=charter["Original text"])} </charter>'
+                    print(witnesses_raw_xml)
                     f.write(witnesses_raw_xml)
-                i += 1
+            f.write("</data>")

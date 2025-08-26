@@ -1,7 +1,7 @@
 from chartertext import *
 #from db import * # Temporarily disabled to minimise package reqs
 from import_csv import *
-#from markup_llm import * # Temporarily disabled to minimise package reqs
+from markup_llm import * # Temporarily disabled to minimise package reqs
 from witness_search import *
 import pathlib
 
@@ -21,3 +21,5 @@ DB_PATH = pathlib.Path(SCRIPT_PATH.parent / "db/charterDB.sql")
 
 WITNESS_PROCESSED_XML_PATH = f"{SCRIPT_PATH.parent}/data/classified_witnesses.xml" # TODO: Bodge. Fix
 WITNESS_PROCESSED_CSV_PATH = f"{SCRIPT_PATH.parent}/data/classified_witnesses.csv"
+
+MASTER_SHEET_DIPLOMAS_CSV_PATH = f"{SCRIPT_PATH.parent}/data/master_sheet_diplomas.csv"
