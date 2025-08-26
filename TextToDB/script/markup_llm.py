@@ -59,22 +59,24 @@ You are an information extraction system.
 
 Input:
 <SEARCHTEXT>...</SEARCHTEXT>
-<EXAMPLES>...</EXAMPLES>
 
 Rules:
-1. Only extract witnesses from the witness list section of <SEARCHTEXT>.
-   - The witness list always follows a formula such as "hiis testibus", "testibus consentientibus", "quorum nomina infra", or similar.
-   - Stop the witness list when land boundaries, property descriptions, or closing narrative resumes.
-   - Ignore dispositive clauses (gifts, grants, confirmations) and ignore land boundary clauses (words like "Ærest", "terminibus", "gemære").
-2. Within that section, extract every FullSignature.
-3. For each:
-   - MatchString = exact text of the signature.
-   - NameOnly = the personal name inside (may be new).
-   - TypeString = one of the Types listed in <EXAMPLES>. Always choose the closest match. Use "unknown" only if no match is possible.
-   - OrderValue = order of appearance starting at 1.
-   - RiskyMatch = FALSE if within the witness list, TRUE otherwise.
-4. Output format (only this):
+1. Only extract witnesses from the witness list.
+   - WitnessList type values in the <EXAMPLES> dataset
+   - The witness list starts after phrases like "hiis testibus", "testibus consentientibus", "quorum nomina infra", or when a series of short clauses begins with "+ Ego", "+ Name" or "+ Name".
+   - Stop extraction when land boundaries, purchases, or narrative resume (keywords: terminibus, gemære, gebohte, circumcincta, Ærest).
+   - Ignore the dispositive clause at the start (gifts, donations, grants).
+2. Within the witness list, extract every FullSignature.
+3. For each valid witness:
+   - MatchString = exact text as it appears.
+   - NameOnly = the personal name (new names allowed).
+   - TypeString = one of the Types listed in <EXAMPLES>. Always choose the closest match. Choose one of: Sovereign, Archbishop, Bishop, Abbot, Comes, Dux, Minister, Priest, Queen, Aetheling, Miles, Staller, NoTitle.
+     Always choose the closest match. Never output raw Latin words like "rex"; map them to the ontology. Use "unknown" only if no match is possible.
+   - OrderValue = sequential order starting at 1.
+   - RiskyMatch = FALSE if inside witness list, TRUE otherwise.
+4. Output format only:
 <MATCH><FULLSIGNATURE>MatchString</FULLSIGNATRUE><NAME>NameOnly</NAME><TYPE>TypeString</TYPE><ORDER>OrderValue</ORDER><RISKY>RiskyMatch</RISKY></MATCH>
+
 """
 
 LLM_MODEL = "o3-mini"
@@ -159,17 +161,28 @@ class MarkupFlagger():
             system_prompt = SYSTEM_PROMPT_WITNESSES
         )
         return(response)
+    
+    def validate_witness_xml(self, witness_xml):
+        pass
+        # TODO: Add the XML validation logic into this and return the string if valid, else keep retrying
 
     def create_witness_xml(self, charters, valid_ids):
+        valid_xml_format = r"<MATCH><FULLSIGNATURE>*</FULLSIGNATRUE><NAME>*</NAME><TYPE>*</TYPE><ORDER>*</ORDER><RISKY>*</RISKY></MATCH>"
+        valid_xml_returned = False
         with open(WITNESS_PROCESSED_XML_PATH, "w", encoding="utf-8") as f:
             f.write("<data>")
             for charter in charters.list_all():
                 if charter["Charter id"] in valid_ids:
                     sawyer_number=charter["Charter id"]
-                    print("Looking up " + sawyer_number)
+                    print(f"Looking up {sawyer_number} with text {charter["Original text"]}")
                     # Get two fields from charter DF: SNumber and Text
                     # TODO: Make the XML CRMTex compliant
-                    witnesses_raw_xml = f'<charter sawyer_id="{sawyer_number}">\n {self.classify_witnesses(search_text=charter["Original text"])} </charter>'
-                    print(witnesses_raw_xml)
-                    f.write(witnesses_raw_xml)
+                    while not valid_xml_returned:
+                        witnesses_raw_xml = f'<charter sawyer_id="{sawyer_number}">\n {self.classify_witnesses(search_text=charter["Original text"])} </charter>'
+                        print(witnesses_raw_xml)
+                        if re.search(valid_xml_format, witnesses_raw_xml):
+                            f.write(witnesses_raw_xml)
+                            valid_xml_returned = True
+                        else:
+                            print(f"Invalid XML returned, retrying classification.")
             f.write("</data>")
