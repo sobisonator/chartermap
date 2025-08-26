@@ -2,7 +2,7 @@ import re
 
 class ImportedCSV():
     def __init__(self,
-                 csv_input, # String; FIlepath
+                 csv_input, # String; Filepath
                  separator): # String; CSV separator char
         # Ensure input is a CSV
         # TODO
@@ -12,9 +12,6 @@ class ImportedCSV():
         ####################
         ### Clean up CSV ###
         ####################
-        """
-        1. Get number of columns defined in first line of CSV by counting the number of separators
-        """
         with open(csv_input, encoding="utf-8") as f:
             self.all_data = {}
             first_line = f.readline()

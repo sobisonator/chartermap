@@ -167,22 +167,29 @@ class MarkupFlagger():
         # TODO: Add the XML validation logic into this and return the string if valid, else keep retrying
 
     def create_witness_xml(self, charters, valid_ids):
-        valid_xml_format = r"<MATCH><FULLSIGNATURE>*</FULLSIGNATRUE><NAME>*</NAME><TYPE>*</TYPE><ORDER>*</ORDER><RISKY>*</RISKY></MATCH>"
-        valid_xml_returned = False
+        valid_xml_format = re.compile(r"<MATCH>.*?<FULLSIGNATURE>.*?</FULLSIGNATURE>.*?<NAME>.*?</NAME>.*?<TYPE>.*?</TYPE>.*?<ORDER>.*?</ORDER>.*?<RISKY>.*?</RISKY>.*?</MATCH>", re.DOTALL)
+        max_attempts = 3
         with open(WITNESS_PROCESSED_XML_PATH, "w", encoding="utf-8") as f:
             f.write("<data>")
             for charter in charters.list_all():
+                attempts = 0 # Counts number of attempts with the LLM API to limit overusage if it is acting up
+                valid_xml_returned = False
                 if charter["Charter id"] in valid_ids:
                     sawyer_number=charter["Charter id"]
-                    print(f"Looking up {sawyer_number} with text {charter["Original text"]}")
-                    # Get two fields from charter DF: SNumber and Text
-                    # TODO: Make the XML CRMTex compliant
-                    while not valid_xml_returned:
-                        witnesses_raw_xml = f'<charter sawyer_id="{sawyer_number}">\n {self.classify_witnesses(search_text=charter["Original text"])} </charter>'
-                        print(witnesses_raw_xml)
-                        if re.search(valid_xml_format, witnesses_raw_xml):
-                            f.write(witnesses_raw_xml)
-                            valid_xml_returned = True
-                        else:
-                            print(f"Invalid XML returned, retrying classification.")
+                    print(f"Looking up {sawyer_number}")
+                    # Validate that the charter's text is not an empty string
+                    if charter["Original text"] != "":
+                        # TODO: Make the XML CRMTex compliant
+                        while not valid_xml_returned and attempts <= 3:
+                            attempts += 1
+                            witnesses_raw_xml = f'<charter sawyer_id="{sawyer_number}">\n {self.classify_witnesses(search_text=charter["Original text"])} </charter>'
+                            print(witnesses_raw_xml)
+                            if re.search(valid_xml_format, witnesses_raw_xml):
+                                f.write(witnesses_raw_xml)
+                                valid_xml_returned = True
+                                print(f"Successfully wrote XML for {sawyer_number}")
+                            else:
+                                print(f"Warning: Invalid XML returned for {sawyer_number}, retrying classification. Attempt {attempts} out of {max_attempts}")
+                    else:
+                        print(f"Warning: Skipping {sawyer_number}: text is empty")
             f.write("</data>")
