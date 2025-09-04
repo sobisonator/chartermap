@@ -1,8 +1,6 @@
 from openai import OpenAI
-import time
 import pandas
 from import_csv import *
-import xml.etree.ElementTree as ET
 
 DEBUG = True
 
@@ -61,22 +59,24 @@ You are an information extraction system.
 
 Input:
 <SEARCHTEXT>...</SEARCHTEXT>
-<EXAMPLES>...</EXAMPLES>
 
 Rules:
-1. Only extract witnesses from the witness list section of <SEARCHTEXT>.
-   - The witness list always follows a formula such as "hiis testibus", "testibus consentientibus", "quorum nomina infra", or similar.
-   - Stop the witness list when land boundaries, property descriptions, or closing narrative resumes.
-   - Ignore dispositive clauses (gifts, grants, confirmations) and ignore land boundary clauses (words like "Ærest", "terminibus", "gemære").
-2. Within that section, extract every FullSignature.
-3. For each:
-   - MatchString = exact text of the signature.
-   - NameOnly = the personal name inside (may be new).
-   - TypeString = one of the Types listed in <EXAMPLES>. Always choose the closest match. Use "unknown" only if no match is possible.
-   - OrderValue = order of appearance starting at 1.
-   - RiskyMatch = FALSE if within the witness list, TRUE otherwise.
-4. Output format (only this):
+1. Only extract witnesses from the witness list.
+   - WitnessList type values in the <EXAMPLES> dataset
+   - The witness list starts after phrases like "hiis testibus", "testibus consentientibus", "quorum nomina infra", or when a series of short clauses begins with "+ Ego", "+ Name" or "+ Name".
+   - Stop extraction when land boundaries, purchases, or narrative resume (keywords: terminibus, gemære, gebohte, circumcincta, Ærest).
+   - Ignore the dispositive clause at the start (gifts, donations, grants).
+2. Within the witness list, extract every FullSignature.
+3. For each valid witness:
+   - MatchString = exact text as it appears.
+   - NameOnly = the personal name (new names allowed).
+   - TypeString = one of the Types listed in <EXAMPLES>. Always choose the closest match. Choose one of: Sovereign, Archbishop, Bishop, Abbot, Comes, Dux, Minister, Priest, Queen, Aetheling, Miles, Staller, NoTitle.
+     Always choose the closest match. Never output raw Latin words like "rex"; map them to the ontology. Use "unknown" only if no match is possible.
+   - OrderValue = sequential order starting at 1.
+   - RiskyMatch = FALSE if inside witness list, TRUE otherwise.
+4. Output format only:
 <MATCH><FULLSIGNATURE>MatchString</FULLSIGNATRUE><NAME>NameOnly</NAME><TYPE>TypeString</TYPE><ORDER>OrderValue</ORDER><RISKY>RiskyMatch</RISKY></MATCH>
+
 """
 
 LLM_MODEL = "o3-mini"
@@ -148,7 +148,7 @@ class MarkupFlagger():
         print(response)
         return(response)
     
-    def classify_witnesses(self, search_text): # TODO: Get search_text from charter_id
+    def classify_witnesses(self, search_text):
         witness_example_data = WITNESS_SAMPLES.read()
 
         user_message = f"""
@@ -161,28 +161,35 @@ class MarkupFlagger():
             system_prompt = SYSTEM_PROMPT_WITNESSES
         )
         return(response)
+    
+    def validate_witness_xml(self, witness_xml):
+        pass
+        # TODO: Add the XML validation logic into this and return the string if valid, else keep retrying
 
-
-# TESTING
-if True:
-    flagger = MarkupFlagger()
-    charters = ImportedCSV(ALL_CHARTERS_PATH, ";")
-    i = 1
-    # TODO: Program this into the MarkupFlagger class
-    # Create a method to run it for an arbitrary number of charters
-    # Within date parameters
-    # And save an XML file with <data> as the root tag, with <charter id="{S Number}"> as the top children per output
-    for charter in charters.list_all():
-        if charter["Year of issue (numerical)"].isnumeric():
-            # TODO: Configure this to filter for only the charters in our dataset, rather than just by year
-            # Doing it by year is just a rough approximation of our dataset
-            if int(charter["Year of issue (numerical)"]) > 870 and i < 2:
-                sawyer_number=charter["Charter id"]
-                print("Looking up " + sawyer_number)
-                # Get two fields from charter DF: SNumber and Text
-                # TODO: Make the XML CRMTex compliant
-                witnesses_raw_xml = f'<charter sawyer_id="{sawyer_number}">\n {flagger.classify_witnesses(search_text=charter["Original text"])} </charter>'
-                print(witnesses_raw_xml)
-                with open(WITNESS_PROCESSED_XML_PATH, "a", encoding="utf-8") as f:
-                    f.write(witnesses_raw_xml)
-                i += 1
+    def create_witness_xml(self, charters, valid_ids):
+        valid_xml_format = re.compile(r"<MATCH>.*?<FULLSIGNATURE>.*?</FULLSIGNATURE>.*?<NAME>.*?</NAME>.*?<TYPE>.*?</TYPE>.*?<ORDER>.*?</ORDER>.*?<RISKY>.*?</RISKY>.*?</MATCH>", re.DOTALL)
+        max_attempts = 3
+        with open(WITNESS_PROCESSED_XML_PATH, "w", encoding="utf-8") as f:
+            f.write("<data>")
+            for charter in charters.list_all():
+                attempts = 0 # Counts number of attempts with the LLM API to limit overusage if it is acting up
+                valid_xml_returned = False
+                if charter["Charter id"] in valid_ids:
+                    sawyer_number=charter["Charter id"]
+                    print(f"Looking up {sawyer_number}")
+                    # Validate that the charter's text is not an empty string
+                    if charter["Original text"] != "":
+                        # TODO: Make the XML CRMTex compliant
+                        while not valid_xml_returned and attempts <= 3:
+                            attempts += 1
+                            witnesses_raw_xml = f'<charter sawyer_id="{sawyer_number}">\n {self.classify_witnesses(search_text=charter["Original text"])} </charter>'
+                            print(witnesses_raw_xml)
+                            if re.search(valid_xml_format, witnesses_raw_xml):
+                                f.write(witnesses_raw_xml)
+                                valid_xml_returned = True
+                                print(f"Successfully wrote XML for {sawyer_number}")
+                            else:
+                                print(f"Warning: Invalid XML returned for {sawyer_number}, retrying classification. Attempt {attempts} out of {max_attempts}")
+                    else:
+                        print(f"Warning: Skipping {sawyer_number}: text is empty")
+            f.write("</data>")
