@@ -11,7 +11,7 @@ INPUT_FILE = "../data/royal_diplomas_geocoding_template.csv"
 OUTPUT_FILE = "../data/royal_diplomas_geocoded_full.csv"
 
 # Initialise Nominatim geocoder
-geolocator = Nominatim(user_agent="anglo-saxon_diploma_placename_geocoder")
+geolocator = Nominatim(user_agent="anglo_saxon_diploma_project")
 geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
 # Comply with usage policy https://operations.osmfoundation.org/policies/nominatim/
 

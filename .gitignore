@@ -3,3 +3,4 @@ themes/*
 plugins/*
 TextToDB/script/__pycache__/*
 .venv/*
+TextToDB/data/classified_witnesses.xml

@@ -3,9 +3,9 @@ import pandas as pd
 
 if True:
     flagger = MarkupFlagger()
-    charters = ImportedCSV(ALL_CHARTERS_PATH, ";")
+    charters_data = pd.read_csv(ALL_CHARTERS_PATH)
     valid_ids = pd.read_csv(MASTER_SHEET_DIPLOMAS_CSV_PATH)["Sawyer number"].tolist()
-    flagger.create_witness_xml(charters,valid_ids)
+    flagger.create_witness_xml(charters_data,valid_ids)
 
 if False:
     witness_tree = WitnessData(WITNESS_PROCESSED_XML_PATH)

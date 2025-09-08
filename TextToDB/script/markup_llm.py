@@ -3,10 +3,7 @@ import pandas
 from import_csv import *
 
 DEBUG = True
-
-ABOVE_PROJECT_PATH = "../../../" # TODO: Use globals for these
-SECRETS_PATH = ABOVE_PROJECT_PATH + "secrets/" 
-ALL_CHARTERS_PATH = ABOVE_PROJECT_PATH + "data/test/Anglo-Saxon_Charters_transformed_v2.csv"
+SECRETS_PATH = "../../../secrets/" 
 OPENAI_API_KEY_PATH = SECRETS_PATH + "openai_api_key.txt" # TODO: Use environment variable in prod
 OPENAI_API_KEY = open(OPENAI_API_KEY_PATH).readline()
 WITNESS_SAMPLES_PATH = "../data/witness_samples.csv"
@@ -55,27 +52,72 @@ System message must follow the following format:
 
 # TODO: Change this to return a CSV with the S number at the end of each ro
 SYSTEM_PROMPT_WITNESSES = f"""
-You are an information extraction system.
+You are an information extraction system. 
+Your only task is to extract witness signatures from Anglo-Saxon charters.
 
 Input:
-<SEARCHTEXT>...</SEARCHTEXT>
+<EXAMPLES> ... annotated examples ... </EXAMPLES>
+<SEARCHTEXT> ... charter text ... </SEARCHTEXT>
 
-Rules:
-1. Only extract witnesses from the witness list.
-   - WitnessList type values in the <EXAMPLES> dataset
-   - The witness list starts after phrases like "hiis testibus", "testibus consentientibus", "quorum nomina infra", or when a series of short clauses begins with "+ Ego", "+ Name" or "+ Name".
-   - Stop extraction when land boundaries, purchases, or narrative resume (keywords: terminibus, gemære, gebohte, circumcincta, Ærest).
-   - Ignore the dispositive clause at the start (gifts, donations, grants).
-2. Within the witness list, extract every FullSignature.
-3. For each valid witness:
-   - MatchString = exact text as it appears.
-   - NameOnly = the personal name (new names allowed).
-   - TypeString = one of the Types listed in <EXAMPLES>. Always choose the closest match. Choose one of: Sovereign, Archbishop, Bishop, Abbot, Comes, Dux, Minister, Priest, Queen, Aetheling, Miles, Staller, NoTitle.
-     Always choose the closest match. Never output raw Latin words like "rex"; map them to the ontology. Use "unknown" only if no match is possible.
-   - OrderValue = sequential order starting at 1.
-   - RiskyMatch = FALSE if inside witness list, TRUE otherwise.
-4. Output format only:
-<MATCH><FULLSIGNATURE>MatchString</FULLSIGNATRUE><NAME>NameOnly</NAME><TYPE>TypeString</TYPE><ORDER>OrderValue</ORDER><RISKY>RiskyMatch</RISKY></MATCH>
+The <EXAMPLES> block is always provided in the user message. 
+It shows correct extractions and mappings for reference. 
+Use the rules below to guide your output, and use the examples only as illustration.
+
+Output format:
+For each valid witness, output ONLY the following XML structure:
+<MATCH>
+  <FULLSIGNATURE>...</FULLSIGNATURE>
+  <NAME>...</NAME>
+  <TYPE>...</TYPE>
+  <ORDER>...</ORDER>
+  <RISKY>...</RISKY>
+</MATCH>
+
+Rules (STRICT):
+
+1. Witness list boundaries
+   - The witness list begins after one of these signals:
+     "hiis testibus", "testibus consentientibus", "quorum nomina infra",
+     OR when a series of clauses begins with "+ Ego", "+ Name", "+ Signum".
+   - Stop extraction immediately at the first sign of boundaries or narrative:
+     keywords = terminibus, gemære/gemaere, circumcincta, gebohte/gebōhte,
+     ærest/Ærest, Ferst, endelang/endelang(e), "from", "unto", "into", "eastwards".
+   - Never include land boundaries, purchases, measurements, or descriptive narrative.
+
+2. Witness extraction
+   - Extract every full witness line inside the list.
+   - <FULLSIGNATURE> = the exact text of the witness line, truncated before any boundary keywords.
+   - <NAME> = only the personal name (strip out "ego", "signum", "crucis", verbs, or other tokens).
+   - Do not output non-names, partial words, or tokens such as "signum", "crucis", or "me".
+
+3. Type classification
+   - Use ONLY these ontology values: Sovereign, Archbishop, Bishop, Abbot, Comes, Dux, Minister,
+     Priest, Queen, Aetheling, Miles, Staller.
+   - Map Latin words to ontology values:
+       rex → Sovereign
+       regina → Queen (includes queen mothers)
+       filius regis / king’s brother → Aetheling
+       episcopus → Bishop
+       archiepiscopus → Archbishop
+       abbas/abbot → Abbot
+       comes → Comes
+       dux → Dux
+       minister → Minister
+       sacerdos/presbyter → Priest
+       miles → Miles
+       staller → Staller
+   - ONLY if no mapping is possible, set <TYPE> to unknown. If there is no title and only a Name present in the FullSignature, DO NOT USE unknown. Unknown must only be used if there is a title which cannot be mapped.
+   - Never output raw Latin as <TYPE>.
+
+4. Order and Risky
+   - <ORDER> starts at 1 for the first valid witness in each charter and increments sequentially.
+   - <RISKY> = FALSE for witnesses clearly inside the witness list.
+   - <RISKY> = TRUE only if the entry is uncertain or outside the witness list.
+
+5. Output constraints
+   - Use EXACT tag names: MATCH, FULLSIGNATURE, NAME, TYPE, ORDER, RISKY.
+   - Do not invent or misspell tags.
+   - Do not output anything except <MATCH> blocks.
 
 """
 
@@ -166,23 +208,22 @@ class MarkupFlagger():
         pass
         # TODO: Add the XML validation logic into this and return the string if valid, else keep retrying
 
-    def create_witness_xml(self, charters, valid_ids):
+    def create_witness_xml(self, charters: pandas.DataFrame, valid_ids):
         valid_xml_format = re.compile(r"<MATCH>.*?<FULLSIGNATURE>.*?</FULLSIGNATURE>.*?<NAME>.*?</NAME>.*?<TYPE>.*?</TYPE>.*?<ORDER>.*?</ORDER>.*?<RISKY>.*?</RISKY>.*?</MATCH>", re.DOTALL)
         max_attempts = 3
-        with open(WITNESS_PROCESSED_XML_PATH, "w", encoding="utf-8") as f:
-            f.write("<data>")
-            for charter in charters.list_all():
+        with open(WITNESS_PROCESSED_XML_PATH, "a", encoding="utf-8") as f:
+            #f.write("<data>")
+            for index, charter in charters.iterrows():
                 attempts = 0 # Counts number of attempts with the LLM API to limit overusage if it is acting up
                 valid_xml_returned = False
-                if charter["Charter id"] in valid_ids:
-                    sawyer_number=charter["Charter id"]
+                sawyer_number=charter["Charter id"]
+                if sawyer_number in valid_ids and int(charter["Sawyer no. (numeral)"]) > 917:
                     print(f"Looking up {sawyer_number}")
-                    # Validate that the charter's text is not an empty string
-                    if charter["Original text"] != "":
+                    if not pandas.isnull(charter["Original text"]):
                         # TODO: Make the XML CRMTex compliant
-                        while not valid_xml_returned and attempts <= 3:
+                        while not valid_xml_returned and attempts < 3:
                             attempts += 1
-                            witnesses_raw_xml = f'<charter sawyer_id="{sawyer_number}">\n {self.classify_witnesses(search_text=charter["Original text"])} </charter>'
+                            witnesses_raw_xml = f'<charter sawyer_id="{sawyer_number}">\n {self.classify_witnesses(search_text=charter["Original text"])}\n</charter>'
                             print(witnesses_raw_xml)
                             if re.search(valid_xml_format, witnesses_raw_xml):
                                 f.write(witnesses_raw_xml)
@@ -191,5 +232,5 @@ class MarkupFlagger():
                             else:
                                 print(f"Warning: Invalid XML returned for {sawyer_number}, retrying classification. Attempt {attempts} out of {max_attempts}")
                     else:
-                        print(f"Warning: Skipping {sawyer_number}: text is empty")
+                        print(f"Warning: Skipping {sawyer_number}: text is null")
             f.write("</data>")
