@@ -45,6 +45,21 @@ tableau = pd.DataFrame(data = None, index = None, columns = tableau_columns)
 # We will prepare rows by adding them into a list of dicts
 # with each dict containing the col (key) : value for one row
 
+
+# Process:
+
+# 1. Iterate through the unique !Null witnesses in WitnessLookup-Main where "Place of issue" != Null
+# 2. For each witness, make a list of all places of issue in which it appears
+# 3. For each witness, make a list of all charters in which it appears
+# 4. For each witness' POI, iterate through all charters in which it appears also in witness scope
+# 5. create Line rows for every other place of issue until all in list done
+# i.e., once on second, ignore first, etc.
+# 5.a. The Line row's content is vaguely:
+# POI1,POI2,Lat1,Lon1,Charter
+
+
+
+
 # Let's have some functions to create the different types of rows or row-combinations
 def create_tableau_line():
     # Q to self: how to get the index we're at?
